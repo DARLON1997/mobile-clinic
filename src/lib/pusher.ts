@@ -4,9 +4,6 @@
  */
 
 import Pusher from "pusher"
-import PusherClient from "pusher-js"
-
-// ─── Serveur (API routes uniquement) ─────────────────────────────────────────
 
 export const pusherServer = new Pusher({
   appId:   process.env.PUSHER_APP_ID!,
@@ -15,15 +12,6 @@ export const pusherServer = new Pusher({
   cluster: process.env.PUSHER_CLUSTER ?? "eu",
   useTLS:  true,
 })
-
-// ─── Client (composants React) ────────────────────────────────────────────────
-
-export const pusherClient = new PusherClient(
-  process.env.NEXT_PUBLIC_PUSHER_KEY!,
-  {
-    cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER ?? "eu",
-  }
-)
 
 // ─── Définition des canaux & événements ──────────────────────────────────────
 

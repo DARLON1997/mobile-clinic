@@ -1,7 +1,5 @@
 import type { NextConfig } from "next"
 
-const isDev = process.env.NODE_ENV === "development"
-
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -11,6 +9,7 @@ const nextConfig: NextConfig = {
   },
 
   async headers() {
+    const isDev = process.env.NODE_ENV === "development"
     return [
       {
         source: "/(.*)",
@@ -41,29 +40,4 @@ const nextConfig: NextConfig = {
   },
 }
 
-// ── PWA (uniquement en production) ────────────────────────────────────────────
-let finalConfig: NextConfig = nextConfig
-
-if (!isDev) {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const withPWA = require("next-pwa")({
-    dest:         "public",
-    register:     true,
-    skipWaiting:  true,
-    disable:      isDev,
-    runtimeCaching: [
-      {
-        urlPattern: /^https?.*/,
-        handler:    "NetworkFirst",
-        options: {
-          cacheName: "mobile-clinic-cache",
-          expiration: { maxEntries: 200, maxAgeSeconds: 24 * 60 * 60 },
-          networkTimeoutSeconds: 10,
-        },
-      },
-    ],
-  })
-  finalConfig = withPWA(nextConfig)
-}
-
-export default finalConfig
+export default nextConfig

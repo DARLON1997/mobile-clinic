@@ -1,0 +1,340 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // url gérée via prisma.config.ts (Prisma 7 — pas de url ici)
+}
+
+// ─────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  CALL_CENTER_AGENT
+  MEDECIN
+  AGENT_TERRAIN
+  PATIENT
+}
+
+enum AppointmentStatus {
+  PENDING            // En attente validation Call Center
+  AWAITING_APPROVAL  // Soumis à l'Admin, en attente
+  APPROVED           // Approuvé par l'Admin
+  REJECTED           // Refusé par l'Admin
+  PAYMENT_PENDING    // En attente de paiement
+  CONFIRMED          // Payé et confirmé
+  IN_PROGRESS        // Consultation en cours
+  COMPLETED          // Consultation terminée
+  CANCELLED          // Annulé
+  NO_SHOW            // Patient absent
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum HomeVisitType {
+  CARE      // Soin à domicile
+  SAMPLING  // Prélèvement à domicile
+}
+
+enum HomeVisitStatus {
+  PENDING   // En attente d'assignation
+  ASSIGNED  // Agent assigné
+  EN_ROUTE  // Agent en route
+  ARRIVED   // Agent arrivé
+  COMPLETED // Mission terminée
+  CANCELLED // Mission annulée
+}
+
+enum MedicalSpeciality {
+  GENERALISTE
+  CARDIOLOGUE
+  DERMATOLOGUE
+  PEDIATRE
+  GYNECOLOGUE
+  OPHTALMOLOGUE
+  PSYCHIATRE
+  NEUROLOGUE
+  ORTHOPEDIE
+  AUTRE
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Compte utilisateur (tous rôles confondus)
+// ─────────────────────────────────────────────────
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  phone        String    @unique
+  passwordHash String
+  role         Role
+  isActive     Boolean   @default(true)
+  isVerified   Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
+
+  // Profils (un seul actif selon le rôle)
+  patientProfile PatientProfile?
+  doctorProfile  DoctorProfile?
+  agentProfile   AgentProfile?
+
+  // Rendez-vous selon le rôle
+  appointmentsAsPatient    Appointment[] @relation("PatientAppointments")
+  appointmentsAsDoctor     Appointment[] @relation("DoctorAppointments")
+  appointmentsAsCallCenter Appointment[] @relation("CallCenterAppointments")
+
+  // Visites à domicile selon le rôle
+  homeVisitsAsPatient HomeVisit[] @relation("PatientHomeVisits")
+  homeVisitsAsAgent   HomeVisit[] @relation("AgentHomeVisits")
+
+  // Messagerie interne
+  sentMessages     ChatMessage[] @relation("SentMessages")
+  receivedMessages ChatMessage[] @relation("ReceivedMessages")
+
+  // Autres
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  payments      Payment[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Profil Patient
+// ─────────────────────────────────────────────────
+model PatientProfile {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  firstName        String
+  lastName         String
+  dateOfBirth      DateTime
+  gender           String
+  bloodType        String?
+  address          String
+  city             String
+  medicalHistory   String?  // Antécédents médicaux
+  allergies        String?  // Allergies connues
+  emergencyContact String?  // Nom + téléphone contact urgence
+  avatarUrl        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Profil Médecin
+// ─────────────────────────────────────────────────
+model DoctorProfile {
+  id                String            @id @default(cuid())
+  userId            String            @unique
+  firstName         String
+  lastName          String
+  speciality        MedicalSpeciality
+  licenseNumber     String            @unique
+  isVerifiedByAdmin Boolean           @default(false)
+  consultationFee   Float
+  bio               String?
+  avatarUrl         String?
+  availabilities    Json?             // Créneaux JSON
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Profil Agent Terrain
+// ─────────────────────────────────────────────────
+model AgentProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  firstName String
+  lastName  String
+  zone      String   // Zone géographique couverte
+  phone     String
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Rendez-vous
+// ─────────────────────────────────────────────────
+model Appointment {
+  id              String            @id @default(cuid())
+  patientId       String
+  doctorId        String
+  callCenterId    String?
+  scheduledAt     DateTime
+  duration        Int               @default(30) // minutes
+  status          AppointmentStatus @default(PENDING)
+  // RÈGLE DB-1 : adminApprovedAt IS NOT NULL = autorisé par l'Admin
+  // NULL signifie que le médecin ne peut PAS accéder au dossier patient
+  adminApprovedAt DateTime?
+  adminApprovedBy String?           // ID de l'admin qui a approuvé
+  adminNote       String?           // Note de refus ou d'approbation
+  videoRoomUrl    String?           // URL salle Daily.co
+  videoRoomName   String?           // Nom salle Daily.co
+  reason          String            // Motif de consultation
+  notes           String?           // Notes internes Call Center
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  patient      User          @relation("PatientAppointments", fields: [patientId], references: [id])
+  doctor       User          @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  callCenter   User?         @relation("CallCenterAppointments", fields: [callCenterId], references: [id])
+  payment      Payment?
+  consultation Consultation?
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Consultation (créée après le RDV terminé)
+// ─────────────────────────────────────────────────
+model Consultation {
+  id              String    @id @default(cuid())
+  appointmentId   String    @unique
+  clinicalNotes   String?   // Notes médicales du médecin
+  diagnosis       String?   // Diagnostic posé
+  prescriptionUrl String?   // URL PDF ordonnance sur Cloudinary
+  followUpDate    DateTime? // Date de suivi recommandée
+  duration        Int?      // Durée réelle de la consultation (min)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Visite à domicile
+// ─────────────────────────────────────────────────
+model HomeVisit {
+  id          String          @id @default(cuid())
+  patientId   String
+  agentId     String?         // Assigné par l'Admin
+  type        HomeVisitType
+  status      HomeVisitStatus @default(PENDING)
+  address     String
+  city        String
+  scheduledAt DateTime
+  reason      String          // Motif de la visite
+  notes       String?         // Instructions spéciales
+  photoUrl    String?         // Photo preuve (Cloudinary)
+  reportUrl   String?         // Rapport PDF (Cloudinary)
+  reportText  String?         // Rapport texte de l'agent
+  completedAt DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  patient User  @relation("PatientHomeVisits", fields: [patientId], references: [id])
+  agent   User? @relation("AgentHomeVisits", fields: [agentId], references: [id])
+  payment Payment?
+
+  @@index([patientId])
+  @@index([agentId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Paiement
+// ─────────────────────────────────────────────────
+model Payment {
+  id            String        @id @default(cuid())
+  userId        String
+  appointmentId String?       @unique
+  homeVisitId   String?       @unique
+  amount        Float
+  currency      String        @default("XAF")
+  method        String        // MTN_MONEY | AIRTEL_MONEY | CARD
+  status        PaymentStatus @default(PENDING)
+  flwRef        String?       // Référence transaction Flutterwave
+  flwTxId       String?       // ID transaction Flutterwave
+  receiptUrl    String?       // URL reçu PDF Cloudinary
+  refundedAt    DateTime?
+  refundReason  String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  homeVisit   HomeVisit?   @relation(fields: [homeVisitId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Notification
+// ─────────────────────────────────────────────────
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // APPOINTMENT_CONFIRMED | PAYMENT_SUCCESS | etc.
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+  sentBySMS   Boolean  @default(false)
+  sentByEmail Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Journal d'audit (CRITIQUE — ne jamais supprimer)
+// ─────────────────────────────────────────────────
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String   // Ex: ACCESSED_PATIENT_RECORD
+  targetId   String?  // ID de la ressource ciblée
+  targetType String?  // Ex: Appointment | PatientProfile
+  details    Json?    // Infos supplémentaires
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Chat interne (Call Center ↔ Admin uniquement)
+// ─────────────────────────────────────────────────
+model ChatMessage {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("SentMessages", fields: [senderId], references: [id])
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  @@index([senderId])
+  @@index([receiverId])
+}

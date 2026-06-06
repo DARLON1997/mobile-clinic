@@ -1,0 +1,294 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE CLINIC — DESIGN SYSTEM
+   Luxury Medical · Rose Gold · Dark Theme
+   ═══════════════════════════════════════════════════════ */
+
+@theme inline {
+  /* ── Couleurs de marque ── */
+  --color-mc-rose-gold:    #C8906A;
+  --color-mc-rose-light:   #E8B49A;
+  --color-mc-rose-dark:    #A0705A;
+  --color-mc-black:        #0A0A0A;
+  --color-mc-bg-card:      #141414;
+  --color-mc-bg-secondary: #1A1A1A;
+  --color-mc-bg-hover:     #202020;
+  --color-mc-border:       #2A2A2A;
+  --color-mc-text-secondary: #AAAAAA;
+  --color-mc-text-muted:   #666666;
+
+  /* ── Statuts médicaux ── */
+  --color-mc-success:  #4CAF87;
+  --color-mc-warning:  #E8A838;
+  --color-mc-danger:   #E85454;
+  --color-mc-info:     #5090D3;
+  --color-mc-purple:   #9B6DD6;
+
+  /* ── Typographies ── */
+  --font-cormorant:  var(--font-cormorant-var), 'Cormorant Garamond', serif;
+  --font-dm-sans:    var(--font-dm-sans-var), 'DM Sans', sans-serif;
+  --font-montserrat: var(--font-montserrat-var), 'Montserrat', sans-serif;
+
+  /* ── Ombres ── */
+  --shadow-gold:       0 0 28px rgba(200,144,106,0.35);
+  --shadow-gold-sm:    0 0 14px rgba(200,144,106,0.20);
+  --shadow-card:       0 8px 32px rgba(0,0,0,0.40);
+  --shadow-card-hover: 0 8px 32px rgba(200,144,106,0.10);
+
+  /* ── Animations ── */
+  --animate-fade-in-up: fadeInUp 0.4s ease-out both;
+  --animate-fade-in:    fadeIn 0.3s ease-out both;
+  --animate-gold-pulse: goldPulse 2s infinite;
+  --animate-shimmer:    shimmer 1.5s infinite;
+}
+
+/* ── Variables CSS brutes (non-Tailwind) ── */
+:root {
+  --mc-black:           #0A0A0A;
+  --mc-white:           #FFFFFF;
+  --mc-rose-gold:       #C8906A;
+  --mc-rose-light:      #E8B49A;
+  --mc-rose-dark:       #A0705A;
+  --mc-rose-glow:       rgba(200, 144, 106, 0.12);
+  --mc-rose-border:     rgba(200, 144, 106, 0.28);
+
+  --mc-bg-primary:      #0A0A0A;
+  --mc-bg-card:         #141414;
+  --mc-bg-secondary:    #1A1A1A;
+  --mc-bg-hover:        #202020;
+
+  --mc-border:          #2A2A2A;
+  --mc-border-light:    #E5E0DB;
+
+  --mc-text-primary:    #FFFFFF;
+  --mc-text-secondary:  #AAAAAA;
+  --mc-text-muted:      #666666;
+  --mc-text-dark:       #0A0A0A;
+
+  --mc-success:         #4CAF87;
+  --mc-success-bg:      rgba(76, 175, 135, 0.12);
+  --mc-warning:         #E8A838;
+  --mc-warning-bg:      rgba(232, 168, 56, 0.12);
+  --mc-danger:          #E85454;
+  --mc-danger-bg:       rgba(232, 84, 84, 0.12);
+  --mc-info:            #5090D3;
+  --mc-info-bg:         rgba(80, 144, 211, 0.12);
+  --mc-purple:          #9B6DD6;
+  --mc-purple-bg:       rgba(155, 109, 214, 0.12);
+}
+
+/* ── Base ── */
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
+  background-color: var(--mc-bg-primary);
+  color: var(--mc-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--mc-bg-secondary); }
+::-webkit-scrollbar-thumb {
+  background: #3A3A3A;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--mc-rose-dark); }
+
+/* ══════════════════════════════════════════════════════
+   TYPOGRAPHIE
+   ══════════════════════════════════════════════════════ */
+
+.font-brand {
+  font-family: var(--font-cormorant), 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.font-heading {
+  font-family: var(--font-dm-sans), 'DM Sans', sans-serif;
+  font-weight: 600;
+}
+
+.font-ui {
+  font-family: var(--font-montserrat), 'Montserrat', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.font-slogan {
+  font-family: var(--font-montserrat), 'Montserrat', sans-serif;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* ══════════════════════════════════════════════════════
+   ANIMATIONS
+   ══════════════════════════════════════════════════════ */
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes goldPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(200, 144, 106, 0.5); }
+  50%       { box-shadow: 0 0 0 12px rgba(200, 144, 106, 0); }
+}
+
+@keyframes badgePulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+.animate-fade-in-up { animation: fadeInUp 0.4s ease-out both; }
+.animate-fade-in    { animation: fadeIn 0.3s ease-out both; }
+.animate-gold-pulse { animation: goldPulse 2s infinite; }
+.animate-badge-pulse { animation: badgePulse 1.5s infinite; }
+
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+
+/* ══════════════════════════════════════════════════════
+   COMPOSANTS UTILITAIRES
+   ══════════════════════════════════════════════════════ */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--mc-bg-card) 25%,
+    var(--mc-bg-secondary) 50%,
+    var(--mc-bg-card) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--mc-rose-border);
+  border-top-color: var(--mc-rose-gold);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* Bouton gold */
+.btn-gold {
+  background: linear-gradient(135deg, var(--mc-rose-gold), var(--mc-rose-light));
+  color: var(--mc-black);
+  font-family: var(--font-montserrat), sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  transition: all 0.3s ease;
+}
+.btn-gold:hover {
+  box-shadow: 0 0 28px rgba(200, 144, 106, 0.45);
+  transform: translateY(-1px);
+}
+.btn-gold:active { transform: translateY(0); }
+
+/* ══════════════════════════════════════════════════════
+   STATUS BADGES
+   ══════════════════════════════════════════════════════ */
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-family: var(--font-montserrat), sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.status-pending  { background: var(--mc-warning-bg); color: var(--mc-warning); }
+.status-awaiting {
+  background: var(--mc-warning-bg); color: var(--mc-warning);
+  animation: badgePulse 2s infinite;
+}
+.status-approved, .status-confirmed, .status-completed {
+  background: var(--mc-success-bg); color: var(--mc-success);
+}
+.status-rejected, .status-cancelled {
+  background: var(--mc-danger-bg); color: var(--mc-danger);
+}
+.status-payment { background: var(--mc-info-bg); color: var(--mc-info); }
+.status-progress, .status-enroute {
+  background: var(--mc-rose-glow); color: var(--mc-rose-gold);
+}
+.status-arrived { background: var(--mc-purple-bg); color: var(--mc-purple); }
+
+/* ══════════════════════════════════════════════════════
+   DASHBOARD — THÈME SOMBRE
+   Overrides des classes Tailwind light dans .mc-dashboard
+   ══════════════════════════════════════════════════════ */
+
+/* Fonds */
+.mc-dashboard .bg-white       { background-color: var(--mc-bg-card) !important; }
+.mc-dashboard .bg-gray-50     { background-color: var(--mc-bg-secondary) !important; }
+.mc-dashboard .bg-gray-100    { background-color: var(--mc-bg-hover) !important; }
+.mc-dashboard .bg-gray-900    { background-color: #000 !important; }
+
+/* Textes */
+.mc-dashboard .text-gray-900  { color: rgba(255,255,255,0.95) !important; }
+.mc-dashboard .text-gray-800  { color: rgba(255,255,255,0.85) !important; }
+.mc-dashboard .text-gray-700  { color: rgba(255,255,255,0.70) !important; }
+.mc-dashboard .text-gray-600  { color: rgba(255,255,255,0.55) !important; }
+.mc-dashboard .text-gray-500  { color: rgba(255,255,255,0.40) !important; }
+.mc-dashboard .text-gray-400  { color: rgba(255,255,255,0.30) !important; }
+.mc-dashboard .text-gray-300  { color: rgba(255,255,255,0.22) !important; }
+
+/* Bordures */
+.mc-dashboard .border-gray-200 { border-color: var(--mc-border) !important; }
+.mc-dashboard .border-gray-100 { border-color: #1E1E1E !important; }
+.mc-dashboard .ring-gray-200   { --tw-ring-color: var(--mc-border) !important; }
+
+/* Dividers */
+.mc-dashboard .divide-gray-100 > * + * { border-color: #1E1E1E !important; }
+.mc-dashboard .divide-y > * + *         { border-color: var(--mc-border) !important; }
+
+/* Hovers */
+.mc-dashboard .hover\:bg-gray-50:hover  { background-color: var(--mc-bg-hover) !important; }
+.mc-dashboard .hover\:bg-gray-100:hover { background-color: #252525 !important; }
+
+/* Inputs dans dashboard */
+.mc-dashboard input:not([class*="bg-"]),
+.mc-dashboard textarea:not([class*="bg-"]),
+.mc-dashboard select:not([class*="bg-"]) {
+  background-color: var(--mc-bg-secondary) !important;
+  color: var(--mc-text-primary) !important;
+  border-color: var(--mc-border) !important;
+}
+.mc-dashboard input::placeholder,
+.mc-dashboard textarea::placeholder {
+  color: var(--mc-text-muted) !important;
+}
+
+/* Fond global du layout agent (mobile) */
+.mc-agent-bg { background-color: var(--mc-bg-primary); }
+
+/* ── Effet verre (header landing) ── */
+.glass-dark {
+  background: rgba(10, 10, 10, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}

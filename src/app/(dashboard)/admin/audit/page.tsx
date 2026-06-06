@@ -2,6 +2,7 @@ import { auth }    from "@/auth"
 import { redirect } from "next/navigation"
 import { prisma }   from "@/lib/prisma"
 import { formatDate } from "@/lib/utils"
+import type { Prisma } from "@prisma/client"
 
 interface SearchParams {
   searchParams: Promise<{ page?: string; userId?: string; action?: string; dateFrom?: string; dateTo?: string }>
@@ -15,14 +16,14 @@ export default async function AuditPage({ searchParams }: SearchParams) {
   const page  = Math.max(1, parseInt(params.page ?? "1"))
   const limit = 50
 
-  const where: Record<string, unknown> = {}
-  if (params.userId)   where.userId   = params.userId
-  if (params.action)   where.action   = params.action
+  const where: Prisma.AuditLogWhereInput = {}
+  if (params.userId) where.userId = params.userId
+  if (params.action) where.action = params.action
   if (params.dateFrom || params.dateTo) {
-    const range: Record<string, Date> = {}
-    if (params.dateFrom) range.gte = new Date(params.dateFrom)
-    if (params.dateTo)   range.lte = new Date(params.dateTo)
-    where.createdAt = range
+    where.createdAt = {
+      ...(params.dateFrom ? { gte: new Date(params.dateFrom) } : {}),
+      ...(params.dateTo   ? { lte: new Date(params.dateTo)   } : {}),
+    }
   }
 
   const [total, logs] = await Promise.all([

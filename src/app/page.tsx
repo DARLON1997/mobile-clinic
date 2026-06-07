@@ -5,6 +5,8 @@ import { HowItWorks } from "@/components/landing/HowItWorks"
 import { Doctors }    from "@/components/landing/Doctors"
 import { Footer }     from "@/components/landing/Footer"
 
+export const dynamic = "force-dynamic"
+
 export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[#0A0A0A]">

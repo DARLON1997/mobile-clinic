@@ -17,11 +17,16 @@ const SPECIALITY_LABELS: Record<string, string> = {
 }
 
 export async function Doctors() {
-  const doctors = await prisma.doctorProfile.findMany({
-    where:   { isVerifiedByAdmin: true },
-    take:    3,
-    orderBy: { createdAt: "asc" },
-  })
+  let doctors: Awaited<ReturnType<typeof prisma.doctorProfile.findMany>> = []
+  try {
+    doctors = await prisma.doctorProfile.findMany({
+      where:   { isVerifiedByAdmin: true },
+      take:    3,
+      orderBy: { createdAt: "asc" },
+    })
+  } catch {
+    // DB unavailable during build — render empty state
+  }
 
   return (
     <section id="doctors" className="bg-[#0D0D0D] py-20 sm:py-28">

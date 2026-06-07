@@ -118,14 +118,14 @@ export default async function PatientAppointmentsPage({ searchParams }: SearchPa
 
                   {/* Actions */}
                   <div className="shrink-0">
-                    {appt.status === "AWAITING_APPROVAL" && (
+                    {(appt.status === "PENDING" || appt.status === "AWAITING_APPROVAL") && (
                       <span className="flex items-center gap-1 text-xs text-orange-600">
                         <Clock className="h-3.5 w-3.5" />
-                        En validation...
+                        En attente d&apos;approbation
                       </span>
                     )}
-                    {appt.status === "PAYMENT_PENDING" && (
-                      <Link href={`/patient/book?pay=${appt.id}`}>
+                    {(appt.status === "PAYMENT_PENDING" || appt.status === "APPROVED") && (
+                      <Link href={`/patient/pay/${appt.id}`}>
                         <Button size="sm" className="text-xs h-8">
                           <CreditCard className="h-3.5 w-3.5" />
                           Payer

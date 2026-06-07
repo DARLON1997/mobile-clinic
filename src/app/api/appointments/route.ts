@@ -131,6 +131,9 @@ export async function POST(req: Request) {
 
     // RÈGLE R8 : transaction
     const appointment = await prisma.$transaction(async (tx) => {
+      // Patient booking directly → skip Call Center step, go straight to admin
+      const initialStatus = session.user.role === "PATIENT" ? "AWAITING_APPROVAL" : "PENDING"
+
       const appt = await tx.appointment.create({
         data: {
           patientId,
@@ -139,7 +142,7 @@ export async function POST(req: Request) {
           duration:    data.duration,
           reason:      data.reason,
           notes:       data.notes,
-          status:      "PENDING",
+          status:      initialStatus,
           callCenterId: session.user.role === "CALL_CENTER_AGENT" ? session.user.id : undefined,
           // adminApprovedAt reste NULL — RÈGLE R1
         },

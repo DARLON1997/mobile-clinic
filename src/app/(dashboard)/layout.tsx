@@ -2,6 +2,7 @@ import type { ReactNode } from "react"
 import { auth }     from "@/auth"
 import { redirect } from "next/navigation"
 import { Sidebar }  from "@/components/shared/Sidebar"
+import { PatientChatWidget } from "@/components/chat/PatientChatWidget"
 import type { UserRole } from "@/types"
 
 function AgentShell({ children }: { children: ReactNode }) {
@@ -29,6 +30,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <main className="mc-dashboard flex-1 overflow-y-auto p-4 md:p-8">
           {children}
         </main>
+        {role === "PATIENT" && <PatientChatWidget />}
       </div>
     </div>
   )

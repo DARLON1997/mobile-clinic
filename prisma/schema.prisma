@@ -104,6 +104,24 @@ model User {
   auditLogs     AuditLog[]
   payments      Payment[]
 
+  // Examens de laboratoire
+  labExamsAsPatient  LabExam[] @relation("PatientLabExams")
+  labExamsAsAgent    LabExam[] @relation("AgentLabExams")
+  requestedLabExams  LabExam[] @relation("RequestedLabExams")
+
+  // Soins infirmiers
+  nursingCaresAsPatient NursingCare[] @relation("PatientNursingCares")
+  nursingCaresAsAgent   NursingCare[] @relation("AgentNursingCares")
+
+  // Soins personnes âgées
+  elderlyCaresAsPatient ElderlyCare[] @relation("PatientElderlyCares")
+  elderlyCaresAsAgent   ElderlyCare[] @relation("AgentElderlyCares")
+
+  // Chat support patient ↔ Call Center
+  patientChats    SupportChat[]    @relation("PatientChats")
+  callCenterChats SupportChat[]    @relation("CallCenterChats")
+  supportMessages SupportMessage[] @relation("SupportMessageSender")
+
   @@index([email])
   @@index([phone])
   @@index([role])
@@ -260,6 +278,9 @@ model Payment {
   userId        String
   appointmentId String?       @unique
   homeVisitId   String?       @unique
+  labExamId     String?       @unique
+  nursingCareId String?       @unique
+  elderlyCareId String?       @unique
   amount        Float
   currency      String        @default("XAF")
   method        String        // MTN_MONEY | AIRTEL_MONEY | CARD
@@ -275,6 +296,9 @@ model Payment {
   user        User         @relation(fields: [userId], references: [id])
   appointment Appointment? @relation(fields: [appointmentId], references: [id])
   homeVisit   HomeVisit?   @relation(fields: [homeVisitId], references: [id])
+  labExam     LabExam?     @relation(fields: [labExamId], references: [id])
+  nursingCare NursingCare? @relation(fields: [nursingCareId], references: [id])
+  elderlyCare ElderlyCare? @relation(fields: [elderlyCareId], references: [id])
 
   @@index([userId])
   @@index([status])
@@ -337,4 +361,221 @@ model ChatMessage {
 
   @@index([senderId])
   @@index([receiverId])
+}
+
+// ─────────────────────────────────────────────────
+// ENUMS V2
+// ─────────────────────────────────────────────────
+
+enum LabExamStatus {
+  PENDING
+  ASSIGNED
+  SAMPLE_COLLECTED
+  IN_ANALYSIS
+  RESULTS_READY
+  DELIVERED
+  CANCELLED
+}
+
+enum LabExamType {
+  BILAN_SANGUIN
+  GLYCEMIE
+  BILAN_LIPIDIQUE
+  BILAN_HEPATIQUE
+  BILAN_RENAL
+  BILAN_THYROIDIEN
+  EXAMEN_URINE
+  EXAMEN_SELLES
+  TEST_PALUDISME
+  TEST_VIH
+  TEST_GROSSESSE
+  BILAN_COMPLET
+  AUTRE
+}
+
+enum NursingCareType {
+  PRISE_TENSION
+  INJECTION
+  PANSEMENT
+  PERFUSION
+  PRISE_DE_SANG
+  SUIVI_POST_OPERATOIRE
+  ADMINISTRATION_MED
+  SOINS_PLAIE
+  AUTRE_SOIN
+}
+
+enum NursingCareStatus {
+  PENDING
+  ASSIGNED
+  EN_ROUTE
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ElderlyCareType {
+  SUIVI_MEDICAL
+  AIDE_MOBILITE
+  GESTION_MEDICAMENTS
+  SOINS_HYGIENE
+  COMPAGNIE_MEDICALISEE
+  REEDUCATION
+  BILAN_SANTE
+  AUTRE_ELDERLY
+}
+
+enum ElderlyCareFrequency {
+  PONCTUEL
+  QUOTIDIEN
+  HEBDOMADAIRE
+  MENSUEL
+}
+
+enum ElderlyCareStatus {
+  PENDING
+  ASSIGNED
+  ACTIVE
+  EN_ROUTE
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Examen de laboratoire
+// ─────────────────────────────────────────────────
+model LabExam {
+  id              String        @id @default(cuid())
+  patientId       String
+  agentId         String?
+  requestedById   String
+  examTypes       LabExamType[]
+  status          LabExamStatus @default(PENDING)
+  address         String
+  city            String
+  scheduledAt     DateTime
+  collectedAt     DateTime?
+  resultsAt       DateTime?
+  instructions    String?
+  agentNotes      String?
+  samplePhotoUrl  String?
+  resultFileUrl   String?
+  resultNotes     String?
+  prescriptionRef String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  patient     User     @relation("PatientLabExams",   fields: [patientId],     references: [id])
+  agent       User?    @relation("AgentLabExams",     fields: [agentId],       references: [id])
+  requestedBy User     @relation("RequestedLabExams", fields: [requestedById], references: [id])
+  payment     Payment?
+
+  @@index([patientId])
+  @@index([agentId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Soin infirmier
+// ─────────────────────────────────────────────────
+model NursingCare {
+  id              String            @id @default(cuid())
+  patientId       String
+  agentId         String?
+  careTypes       NursingCareType[]
+  status          NursingCareStatus @default(PENDING)
+  address         String
+  city            String
+  scheduledAt     DateTime
+  completedAt     DateTime?
+  duration        Int?
+  instructions    String?
+  materials       String?
+  agentNotes      String?
+  reportUrl       String?
+  photoUrl        String?
+  prescriptionRef String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  patient User  @relation("PatientNursingCares", fields: [patientId], references: [id])
+  agent   User? @relation("AgentNursingCares",   fields: [agentId],   references: [id])
+  payment Payment?
+
+  @@index([patientId])
+  @@index([agentId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Soin personnes âgées
+// ─────────────────────────────────────────────────
+model ElderlyCare {
+  id            String               @id @default(cuid())
+  patientId     String
+  agentId       String?
+  careTypes     ElderlyCareType[]
+  frequency     ElderlyCareFrequency @default(PONCTUEL)
+  status        ElderlyCareStatus    @default(PENDING)
+  address       String
+  city          String
+  scheduledAt   DateTime
+  endDate       DateTime?
+  completedAt   DateTime?
+  duration      Int                  @default(60)
+  patientAge    Int?
+  medicalNotes  String?
+  mobilityLevel String?
+  agentNotes    String?
+  reportUrl     String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  patient User  @relation("PatientElderlyCares", fields: [patientId], references: [id])
+  agent   User? @relation("AgentElderlyCares",   fields: [agentId],   references: [id])
+  payment Payment?
+
+  @@index([patientId])
+  @@index([agentId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Chat Support patient ↔ Call Center
+// ─────────────────────────────────────────────────
+model SupportChat {
+  id            String   @id @default(cuid())
+  patientId     String
+  callCenterId  String?
+  subject       String
+  isOpen        Boolean  @default(true)
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  patient    User  @relation("PatientChats",    fields: [patientId],    references: [id])
+  callCenter User? @relation("CallCenterChats", fields: [callCenterId], references: [id])
+  messages   SupportMessage[]
+
+  @@index([patientId])
+  @@index([callCenterId])
+  @@index([isOpen])
+}
+
+model SupportMessage {
+  id        String   @id @default(cuid())
+  chatId    String
+  senderId  String
+  content   String
+  isRead    Boolean  @default(false)
+  fileUrl   String?
+  createdAt DateTime @default(now())
+
+  chat   SupportChat @relation(fields: [chatId],   references: [id], onDelete: Cascade)
+  sender User        @relation("SupportMessageSender", fields: [senderId], references: [id])
+
+  @@index([chatId])
+  @@index([senderId])
+  @@index([isRead])
 }

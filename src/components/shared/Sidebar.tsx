@@ -10,18 +10,22 @@ import {
   LayoutDashboard, CalendarCheck, Users, ShieldCheck,
   DollarSign, ScrollText, Video, History, BookOpen,
   Home, FileText, MapPin, LogOut, Menu, X, Heart,
+  FlaskConical, Syringe, MessageCircle,
 } from "lucide-react"
 
 type NavItem = { href: string; label: string; icon: React.ElementType }
 
 const NAV: Record<UserRole, NavItem[]> = {
   SUPER_ADMIN: [
-    { href: "/admin",           label: "Tableau de bord",  icon: LayoutDashboard },
-    { href: "/admin/approvals", label: "Autorisations",    icon: ShieldCheck },
-    { href: "/admin/doctors",   label: "Médecins",         icon: Video },
-    { href: "/admin/users",     label: "Utilisateurs",     icon: Users },
-    { href: "/admin/finances",  label: "Finances",         icon: DollarSign },
-    { href: "/admin/audit",     label: "Journal d'audit",  icon: ScrollText },
+    { href: "/admin",                label: "Tableau de bord",  icon: LayoutDashboard },
+    { href: "/admin/approvals",      label: "Autorisations",    icon: ShieldCheck },
+    { href: "/admin/doctors",        label: "Médecins",         icon: Video },
+    { href: "/admin/users",          label: "Utilisateurs",     icon: Users },
+    { href: "/admin/lab-exams",      label: "Examens labo",     icon: FlaskConical },
+    { href: "/admin/nursing-cares",  label: "Soins infirmiers", icon: Syringe },
+    { href: "/admin/elderly-cares",  label: "Soins seniors",    icon: Users },
+    { href: "/admin/finances",       label: "Finances",         icon: DollarSign },
+    { href: "/admin/audit",          label: "Journal d'audit",  icon: ScrollText },
   ],
   MEDECIN: [
     { href: "/doctor",              label: "Planning",    icon: LayoutDashboard },
@@ -33,6 +37,9 @@ const NAV: Record<UserRole, NavItem[]> = {
     { href: "/patient/book",           label: "Prendre un RDV",  icon: CalendarCheck },
     { href: "/patient/appointments",   label: "Mes RDV",         icon: CalendarCheck },
     { href: "/patient/home-visit",     label: "Soin à domicile", icon: Home },
+    { href: "/patient/lab-exams",      label: "Examens labo",    icon: FlaskConical },
+    { href: "/patient/nursing-care",   label: "Soins infirmiers",icon: Syringe },
+    { href: "/patient/elderly-care",   label: "Soins seniors",   icon: Users },
     { href: "/patient/medical-record", label: "Dossier médical", icon: FileText },
     { href: "/patient/prescriptions",  label: "Ordonnances",     icon: BookOpen },
   ],
@@ -40,6 +47,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { href: "/call-center",              label: "Tableau de bord", icon: LayoutDashboard },
     { href: "/call-center/appointments", label: "Rendez-vous",     icon: CalendarCheck },
     { href: "/call-center/home-visits",  label: "Soins domicile",  icon: Home },
+    { href: "/call-center/chats",        label: "Conversations",   icon: MessageCircle },
   ],
   AGENT_TERRAIN: [
     { href: "/agent", label: "Mes missions", icon: MapPin },

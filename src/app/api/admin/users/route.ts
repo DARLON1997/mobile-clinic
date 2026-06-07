@@ -3,12 +3,21 @@ import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import bcrypt from "bcryptjs"
+import type { MedicalSpeciality } from "@prisma/client"
 
-const CreateUserSchema = z.object({
+const BaseSchema = z.object({
   email:    z.string().email(),
   password: z.string().min(8),
   phone:    z.string().min(8),
   role:     z.enum(["CALL_CENTER_AGENT", "MEDECIN", "AGENT_TERRAIN"]),
+})
+
+const DoctorSchema = BaseSchema.extend({
+  firstName:       z.string().min(1),
+  lastName:        z.string().min(1),
+  speciality:      z.string().min(1),
+  licenseNumber:   z.string().min(1),
+  consultationFee: z.coerce.number().min(0),
 })
 
 export async function POST(req: Request) {
@@ -18,7 +27,7 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json()
-  const parsed = CreateUserSchema.safeParse(body)
+  const parsed = (body.role === "MEDECIN" ? DoctorSchema : BaseSchema).safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: "Données invalides", details: parsed.error.flatten() }, { status: 400 })
   }
@@ -30,6 +39,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Email ou téléphone déjà utilisé" }, { status: 409 })
   }
 
+  if (role === "MEDECIN") {
+    const licenseExists = await prisma.doctorProfile.findUnique({
+      where: { licenseNumber: (parsed.data as z.infer<typeof DoctorSchema>).licenseNumber },
+    })
+    if (licenseExists) {
+      return NextResponse.json({ error: "Ce numéro de licence est déjà utilisé" }, { status: 409 })
+    }
+  }
+
   const passwordHash = await bcrypt.hash(password, 12)
 
   const user = await prisma.$transaction(async (tx) => {
@@ -37,6 +55,22 @@ export async function POST(req: Request) {
       data: { email, phone, passwordHash, role, isActive: true },
       select: { id: true, email: true, phone: true, role: true, isActive: true, createdAt: true },
     })
+
+    if (role === "MEDECIN") {
+      const d = parsed.data as z.infer<typeof DoctorSchema>
+      await tx.doctorProfile.create({
+        data: {
+          userId:          created.id,
+          firstName:       d.firstName,
+          lastName:        d.lastName,
+          speciality:      d.speciality as MedicalSpeciality,
+          licenseNumber:   d.licenseNumber,
+          consultationFee: d.consultationFee,
+          isVerifiedByAdmin: false,
+        },
+      })
+    }
+
     await tx.auditLog.create({
       data: {
         userId:     session.user.id,

@@ -10,6 +10,19 @@ const ROLES = [
   { value: "AGENT_TERRAIN",     label: "Agent Terrain" },
 ] as const
 
+const SPECIALITIES = [
+  { value: "GENERALISTE",   label: "Généraliste" },
+  { value: "CARDIOLOGUE",   label: "Cardiologue" },
+  { value: "DERMATOLOGUE",  label: "Dermatologue" },
+  { value: "PEDIATRE",      label: "Pédiatre" },
+  { value: "GYNECOLOGUE",   label: "Gynécologue" },
+  { value: "OPHTALMOLOGUE", label: "Ophtalmologue" },
+  { value: "PSYCHIATRE",    label: "Psychiatre" },
+  { value: "NEUROLOGUE",    label: "Neurologue" },
+  { value: "ORTHOPEDIE",    label: "Orthopédiste" },
+  { value: "AUTRE",         label: "Autre" },
+] as const
+
 type Role = typeof ROLES[number]["value"]
 
 export function CreateUserModal() {
@@ -22,10 +35,11 @@ export function CreateUserModal() {
 
   const [form, setForm] = useState({
     email: "", password: "", phone: "", role: "CALL_CENTER_AGENT" as Role,
+    firstName: "", lastName: "", speciality: "GENERALISTE", licenseNumber: "", consultationFee: "",
   })
 
   function reset() {
-    setForm({ email: "", password: "", phone: "", role: "CALL_CENTER_AGENT" })
+    setForm({ email: "", password: "", phone: "", role: "CALL_CENTER_AGENT", firstName: "", lastName: "", speciality: "GENERALISTE", licenseNumber: "", consultationFee: "" })
     setError(null)
     setSuccess(false)
   }
@@ -37,10 +51,18 @@ export function CreateUserModal() {
     setError(null)
     setLoading(true)
     try {
+      const payload: Record<string, string> = { email: form.email, password: form.password, phone: form.phone, role: form.role }
+      if (form.role === "MEDECIN") {
+        payload.firstName      = form.firstName
+        payload.lastName       = form.lastName
+        payload.speciality     = form.speciality
+        payload.licenseNumber  = form.licenseNumber
+        payload.consultationFee = form.consultationFee
+      }
       const res = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       })
       const json = await res.json()
       if (!res.ok) {
@@ -137,6 +159,69 @@ export function CreateUserModal() {
                     placeholder="+242060000000"
                   />
                 </div>
+
+                {/* Champs spécifiques Médecin */}
+                {form.role === "MEDECIN" && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium text-[#AAAAAA]">Prénom</label>
+                        <input
+                          type="text" required
+                          value={form.firstName}
+                          onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))}
+                          className="w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2.5 text-sm text-white placeholder-[#444444] focus:border-[#C8906A] focus:outline-none"
+                          placeholder="Jean"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium text-[#AAAAAA]">Nom</label>
+                        <input
+                          type="text" required
+                          value={form.lastName}
+                          onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}
+                          className="w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2.5 text-sm text-white placeholder-[#444444] focus:border-[#C8906A] focus:outline-none"
+                          placeholder="Dupont"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-[#AAAAAA]">Spécialité</label>
+                      <select
+                        required
+                        value={form.speciality}
+                        onChange={e => setForm(f => ({ ...f, speciality: e.target.value }))}
+                        className="w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2.5 text-sm text-white focus:border-[#C8906A] focus:outline-none"
+                      >
+                        {SPECIALITIES.map(s => (
+                          <option key={s.value} value={s.value}>{s.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium text-[#AAAAAA]">N° de licence</label>
+                        <input
+                          type="text" required
+                          value={form.licenseNumber}
+                          onChange={e => setForm(f => ({ ...f, licenseNumber: e.target.value }))}
+                          className="w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2.5 text-sm text-white placeholder-[#444444] focus:border-[#C8906A] focus:outline-none"
+                          placeholder="MED-2024-001"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium text-[#AAAAAA]">Tarif (FCFA)</label>
+                        <input
+                          type="number" required min={0}
+                          value={form.consultationFee}
+                          onChange={e => setForm(f => ({ ...f, consultationFee: e.target.value }))}
+                          className="w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2.5 text-sm text-white placeholder-[#444444] focus:border-[#C8906A] focus:outline-none"
+                          placeholder="15000"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Mot de passe */}
                 <div>

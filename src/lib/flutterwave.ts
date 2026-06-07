@@ -27,8 +27,8 @@ async function flwRequest(path: string, body: object) {
 type PaymentMethod = "MTN_MONEY" | "AIRTEL_MONEY" | "CARD"
 
 const PAYMENT_TYPE: Record<PaymentMethod, string> = {
-  MTN_MONEY:    "mobilemoneyrwanda", // Congo utilise l'endpoint mobilemoney
-  AIRTEL_MONEY: "mobilemoneyrwanda",
+  MTN_MONEY:    "mobilemoneycongo",
+  AIRTEL_MONEY: "mobilemoneycongo",
   CARD:         "card",
 }
 

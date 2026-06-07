@@ -40,12 +40,20 @@ export default function BookPage() {
   async function loadDoctors() {
     if (doctorsLoaded) return
     try {
-      const res = await fetch("/api/appointments?_doctors=1")
-      // Fallback : on appelle l'API publique des médecins
-      const res2 = await fetch("/api/doctors")
-      if (res2.ok) {
-        const json = await res2.json()
-        setDoctors(json.data ?? [])
+      const res = await fetch("/api/doctors")
+      if (res.ok) {
+        const json = await res.json()
+        // L'API retourne { id, doctorProfile: { firstName, ... } } — on aplatit
+        const mapped: Doctor[] = (json.data ?? [])
+          .filter((d: { doctorProfile: unknown }) => d.doctorProfile)
+          .map((d: { id: string; doctorProfile: { firstName: string; lastName: string; speciality: string; consultationFee: number } }) => ({
+            id:              d.id,
+            firstName:       d.doctorProfile.firstName,
+            lastName:        d.doctorProfile.lastName,
+            speciality:      d.doctorProfile.speciality,
+            consultationFee: d.doctorProfile.consultationFee,
+          }))
+        setDoctors(mapped)
       }
     } catch { /* ignore */ } finally {
       setDoctorsLoaded(true)

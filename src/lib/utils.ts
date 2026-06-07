@@ -77,3 +77,42 @@ export function normalizeCongoPhone(phone: string): string {
   if (digits.startsWith("0"))   return `+242${digits.slice(1)}`
   return `+242${digits}`
 }
+
+// ── Utilitaires Chat ────────────────────────────────────────────────────────
+
+export function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear()
+    && a.getMonth()      === b.getMonth()
+    && a.getDate()       === b.getDate()
+}
+
+export function formatMessageTime(date: string | Date): string {
+  return new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(date))
+}
+
+export function formatDateLabel(date: string | Date): string {
+  const d = new Date(date)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  if (isSameDay(d, today))     return "Aujourd'hui"
+  if (isSameDay(d, yesterday)) return "Hier"
+  return new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" }).format(d)
+}
+
+export function formatRelativeTime(date: string | Date): string {
+  const d = new Date(date)
+  const now = new Date()
+  if (isSameDay(d, now)) return formatMessageTime(d)
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (isSameDay(d, yesterday)) return "Hier"
+  const weekAgo = new Date(now)
+  weekAgo.setDate(now.getDate() - 7)
+  if (d > weekAgo) return new Intl.DateTimeFormat("fr-FR", { weekday: "short" }).format(d)
+  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit" }).format(d)
+}
+
+export function getInitials(name: string): string {
+  return name.split(" ").map(n => n.charAt(0).toUpperCase()).slice(0, 2).join("")
+}

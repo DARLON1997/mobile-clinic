@@ -1,57 +1,94 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { MessageCircle, X, Send, ChevronDown } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, isSameDay, formatDateLabel } from "@/lib/utils"
+import { getPusherClient } from "@/lib/pusher-client"
+import { playNotificationSound, showBrowserNotification } from "@/lib/chat-notifications"
+import { MessageBubble, type ChatMessage } from "@/components/chat/MessageBubble"
 
-type Message = {
-  id: string; content: string; createdAt: string
-  sender: { email: string; role: string }
-}
+interface Props { userId: string }
 
 type Chat = { id: string; subject: string; isOpen: boolean }
 
-export function PatientChatWidget() {
-  const [open,       setOpen]      = useState(false)
-  const [chat,       setChat]      = useState<Chat | null>(null)
-  const [messages,   setMessages]  = useState<Message[]>([])
-  const [newMsg,     setNewMsg]    = useState("")
-  const [subject,    setSubject]   = useState("")
-  const [unread,     setUnread]    = useState(0)
-  const [loading,    setLoading]   = useState(false)
-  const [creating,   setCreating]  = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+export function PatientChatWidget({ userId }: Props) {
+  const [open,     setOpen]     = useState(false)
+  const [chat,     setChat]     = useState<Chat | null>(null)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [newMsg,   setNewMsg]   = useState("")
+  const [unread,   setUnread]   = useState(0)
+  const [subject,  setSubject]  = useState("")
+  const [creating, setCreating] = useState(false)
+  const [loading,  setLoading]  = useState(false)
+  const endRef = useRef<HTMLDivElement>(null)
 
+  const scrollToBottom = useCallback((smooth = true) => {
+    endRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "instant" })
+  }, [])
+
+  // Charger le chat existant au démarrage
   useEffect(() => {
     fetch("/api/support-chat")
       .then(r => r.json())
       .then(j => {
         const chats: Chat[] = j.data ?? []
-        const openChat = chats.find(c => c.isOpen)
-        if (openChat) setChat(openChat)
+        const active = chats.find(c => c.isOpen)
+        if (active) setChat(active)
       })
   }, [])
 
+  // Charger les messages quand le chat s'ouvre
   useEffect(() => {
-    if (chat && open) loadMessages()
-  }, [chat, open])
+    if (!chat || !open) return
+    fetch(`/api/support-chat/${chat.id}/messages`)
+      .then(r => r.json())
+      .then(j => {
+        setMessages(j.data ?? [])
+        setUnread(0)
+        setTimeout(() => scrollToBottom(false), 50)
+      })
+  }, [chat?.id, open, scrollToBottom])
 
+  // Pusher — canal du chat actif
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
-
-  async function loadMessages() {
     if (!chat) return
-    const res = await fetch(`/api/support-chat/${chat.id}/messages`)
-    const json = await res.json()
-    setMessages(json.data ?? [])
-    setUnread(0)
-  }
+    const pusher = getPusherClient()
+    if (!pusher) return
+
+    const channel = pusher.subscribe(`chat-${chat.id}`)
+    channel.bind("new-message", (msg: ChatMessage) => {
+      if (msg.senderRole === "PATIENT") return // message optimiste déjà affiché
+      setMessages(prev => {
+        if (prev.find(m => m.id === msg.id)) return prev
+        return [...prev, msg]
+      })
+      if (!open) {
+        setUnread(n => n + 1)
+        playNotificationSound()
+        showBrowserNotification("💬 Support Mobile Clinic", msg.content)
+      } else {
+        setTimeout(scrollToBottom, 50)
+      }
+    })
+
+    return () => { pusher.unsubscribe(`chat-${chat.id}`) }
+  }, [chat?.id, open, scrollToBottom])
+
+  // Pusher — notifications arrière-plan (widget fermé)
+  useEffect(() => {
+    const pusher = getPusherClient()
+    if (!pusher) return
+    const channel = pusher.subscribe(`patient-${userId}`)
+    channel.bind("new-message", () => {
+      if (!open) setUnread(n => n + 1)
+    })
+    return () => { pusher.unsubscribe(`patient-${userId}`) }
+  }, [userId, open])
 
   async function createChat() {
     if (!subject.trim()) return
     setCreating(true)
-    const res = await fetch("/api/support-chat", {
+    const res  = await fetch("/api/support-chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ subject }),
@@ -63,115 +100,173 @@ export function PatientChatWidget() {
 
   async function sendMessage() {
     if (!chat || !newMsg.trim()) return
+    const text  = newMsg.trim()
+    const tempId = `temp-${Date.now()}`
+    const optimistic: ChatMessage = {
+      id: tempId, content: text,
+      senderId: userId, senderRole: "PATIENT", senderName: "Moi",
+      createdAt: new Date().toISOString(), isRead: false, isPending: true,
+    }
+    setMessages(prev => [...prev, optimistic])
+    setNewMsg("")
+    setTimeout(scrollToBottom, 50)
     setLoading(true)
-    const res = await fetch(`/api/support-chat/${chat.id}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: newMsg }),
+
+    try {
+      const res  = await fetch(`/api/support-chat/${chat.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: text }),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...json.data, isPending: false } : m))
+      } else {
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...m, isPending: false, isFailed: true } : m))
+      }
+    } catch {
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, isPending: false, isFailed: true } : m))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Groupement des messages (WhatsApp)
+  function renderMessages() {
+    return messages.map((msg, i) => {
+      const prev = messages[i - 1]
+      const isFirstInSeries = !prev
+        || prev.senderId !== msg.senderId
+        || (new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime()) > 2 * 60 * 1000
+
+      const showDateSep = !prev
+        || !isSameDay(new Date(msg.createdAt), new Date(prev.createdAt))
+
+      const isOwn = msg.senderRole === "PATIENT"
+
+      return (
+        <div key={msg.id}>
+          {showDateSep && (
+            <div className="chat-date-sep">
+              <span>{formatDateLabel(msg.createdAt)}</span>
+            </div>
+          )}
+          <MessageBubble
+            message={msg}
+            isOwn={isOwn}
+            isFirstInSeries={isFirstInSeries}
+            showSenderName={isFirstInSeries && !isOwn}
+          />
+        </div>
+      )
     })
-    const json = await res.json()
-    if (res.ok) { setMessages(prev => [...prev, json.data]); setNewMsg("") }
-    setLoading(false)
   }
 
   return (
     <>
       {/* Bouton flottant */}
       <button
-        onClick={() => { setOpen(o => !o); if (!open && chat) loadMessages() }}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-all"
+        onClick={() => { setOpen(o => !o); if (!open) setUnread(0) }}
+        className={cn(
+          "fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-xl transition-all duration-300",
+          "bg-gradient-to-br from-[#C8906A] to-[#E8B49A]",
+          !open && unread > 0 && "animate-gold-pulse"
+        )}
         aria-label="Chat support"
       >
-        {open ? <ChevronDown className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+        {open
+          ? <ChevronDown className="h-6 w-6 text-[#0A0A0A]" />
+          : <MessageCircle className="h-6 w-6 text-[#0A0A0A]" />
+        }
         {!open && unread > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold">
-            {unread}
+          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#E85454] text-[10px] font-bold text-white border-2 border-[#0A0A0A]">
+            {unread > 9 ? "9+" : unread}
           </span>
         )}
       </button>
 
-      {/* Panneau chat */}
+      {/* Panneau */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 flex w-80 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
-          style={{ height: 460 }}>
-          {/* En-tête */}
-          <div className="flex items-center justify-between bg-blue-600 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5 text-white" />
-              <div>
-                <p className="text-sm font-semibold text-white">Support Mobile Clinic</p>
-                <p className="text-[11px] text-blue-200">🟢 En ligne</p>
-              </div>
+        <div className="fixed bottom-24 right-5 z-50 flex flex-col overflow-hidden rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] shadow-2xl"
+          style={{ width: 360, height: 520 }}>
+
+          {/* Header */}
+          <div className="flex items-center gap-3 border-b border-[#2A2A2A] bg-[#141414] px-4 py-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#C8906A] to-[#E8B49A]">
+              <MessageCircle className="h-4 w-4 text-[#0A0A0A]" />
             </div>
-            <button onClick={() => setOpen(false)} className="text-white/70 hover:text-white">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white leading-none">Support Mobile Clinic</p>
+              <p className="mt-0.5 text-[11px] text-[#4CAF87]">🟢 En ligne</p>
+            </div>
+            <button onClick={() => setOpen(false)} className="text-[#555555] hover:text-white transition-colors">
               <X className="h-4 w-4" />
             </button>
           </div>
 
           {/* Corps */}
           {!chat ? (
-            <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
-              <MessageCircle className="mb-3 h-12 w-12 text-gray-200" />
-              <p className="font-semibold text-gray-700">Besoin d&apos;aide ?</p>
-              <p className="mt-1 text-xs text-gray-400">Notre équipe est disponible pour répondre à vos questions.</p>
-              <div className="mt-4 w-full">
+            /* Démarrer une conversation */
+            <div className="flex flex-1 flex-col items-center justify-center p-6 text-center bg-[#0A0A0A]">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(200,144,106,0.1)] border border-[rgba(200,144,106,0.2)]">
+                <MessageCircle className="h-7 w-7 text-[#C8906A]" />
+              </div>
+              <p className="font-semibold text-white">Besoin d&apos;aide ?</p>
+              <p className="mt-1 text-xs text-[#555555]">Notre équipe répond rapidement à vos questions.</p>
+              <div className="mt-5 w-full">
                 <input
+                  className="chat-input w-full"
+                  placeholder="Sujet de votre question..."
                   value={subject}
                   onChange={e => setSubject(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") createChat() }}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
-                  placeholder="Sujet de votre question..."
                 />
                 <button onClick={createChat} disabled={!subject.trim() || creating}
-                  className="mt-2 w-full rounded-xl bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+                  className="mt-2 w-full rounded-xl bg-[#C8906A] py-2.5 text-sm font-semibold text-[#0A0A0A] hover:bg-[#E8B49A] disabled:opacity-40 transition-colors">
                   {creating ? "Démarrage..." : "Démarrer une conversation"}
                 </button>
               </div>
             </div>
           ) : (
             <>
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {/* Zone messages */}
+              <div className="chat-messages-zone flex-1">
                 {messages.length === 0 && (
-                  <p className="text-center text-xs text-gray-400 mt-4">Conversation ouverte. Un agent vous répondra bientôt.</p>
+                  <p className="text-center text-xs text-[#444444] mt-6">
+                    Conversation ouverte — un agent vous répond bientôt.
+                  </p>
                 )}
-                {messages.map(msg => {
-                  const isMe = msg.sender.role === "PATIENT"
-                  return (
-                    <div key={msg.id} className={cn("flex", isMe ? "justify-end" : "justify-start")}>
-                      <div className={cn("max-w-[220px] rounded-2xl px-3 py-2 text-xs",
-                        isMe
-                          ? "rounded-br-sm bg-blue-600 text-white"
-                          : "rounded-bl-sm bg-gray-100 text-gray-800"
-                      )}>
-                        <p>{msg.content}</p>
-                        <p className={cn("mt-0.5 text-[10px]", isMe ? "text-blue-200" : "text-gray-400")}>
-                          {new Date(msg.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
-                <div ref={messagesEndRef} />
+                {renderMessages()}
+                <div ref={endRef} />
               </div>
 
-              {/* Saisie */}
+              {/* Zone saisie */}
               {chat.isOpen ? (
-                <div className="flex items-center gap-2 border-t border-gray-100 p-3">
+                <div className="chat-input-zone">
                   <input
+                    className="chat-input"
+                    placeholder="Écrire un message..."
                     value={newMsg}
                     onChange={e => setNewMsg(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") sendMessage() }}
-                    className="flex-1 rounded-xl border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
-                    placeholder="Votre message..."
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+                    autoComplete="off"
                   />
-                  <button onClick={sendMessage} disabled={!newMsg.trim() || loading}
-                    className="rounded-xl bg-blue-600 p-1.5 text-white hover:bg-blue-700 disabled:opacity-50">
-                    <Send className="h-4 w-4" />
+                  <button
+                    onClick={sendMessage}
+                    disabled={!newMsg.trim() || loading}
+                    style={{
+                      width: 36, height: 36, borderRadius: "50%", border: "none", flexShrink: 0,
+                      background: newMsg.trim() ? "linear-gradient(135deg,#C8906A,#E8B49A)" : "#1A1A1A",
+                      cursor: newMsg.trim() ? "pointer" : "default",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "background 0.2s ease",
+                    }}
+                  >
+                    <Send size={14} color={newMsg.trim() ? "#0A0A0A" : "#444444"} />
                   </button>
                 </div>
               ) : (
-                <div className="border-t border-gray-100 p-3 text-center text-xs text-gray-400">
+                <div className="border-t border-[#2A2A2A] p-3 text-center text-xs text-[#444444]">
                   Conversation clôturée.
                 </div>
               )}

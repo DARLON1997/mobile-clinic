@@ -17,6 +17,7 @@ enum Role {
   MEDECIN
   AGENT_TERRAIN
   PATIENT
+  PHARMACIE
 }
 
 enum AppointmentStatus {
@@ -121,6 +122,14 @@ model User {
   patientChats    SupportChat[]    @relation("PatientChats")
   callCenterChats SupportChat[]    @relation("CallCenterChats")
   supportMessages SupportMessage[] @relation("SupportMessageSender")
+
+  // Pharmacie
+  pharmacieProfile      PharmacieProfile?            @relation("PharmacieUser")
+  commandesAsPatient    CommandePharmacie[]           @relation("PatientCommandes")
+  commandesAsAgent      CommandePharmacie[]           @relation("AgentCommandes")
+  ordonnancesPatient    OrdonnancePharmacieRequest[]  @relation("PatientOrdonnances")
+  ordonnancesCallCenter OrdonnancePharmacieRequest[]  @relation("CallCenterOrdonnances")
+  avisPharmacies        AvisPharmacie[]               @relation("PatientAvis")
 
   @@index([email])
   @@index([phone])
@@ -293,12 +302,15 @@ model Payment {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  user        User         @relation(fields: [userId], references: [id])
-  appointment Appointment? @relation(fields: [appointmentId], references: [id])
-  homeVisit   HomeVisit?   @relation(fields: [homeVisitId], references: [id])
-  labExam     LabExam?     @relation(fields: [labExamId], references: [id])
-  nursingCare NursingCare? @relation(fields: [nursingCareId], references: [id])
-  elderlyCare ElderlyCare? @relation(fields: [elderlyCareId], references: [id])
+  commandePharmacieId String?       @unique
+
+  user              User              @relation(fields: [userId], references: [id])
+  appointment       Appointment?      @relation(fields: [appointmentId], references: [id])
+  homeVisit         HomeVisit?        @relation(fields: [homeVisitId], references: [id])
+  labExam           LabExam?          @relation(fields: [labExamId], references: [id])
+  nursingCare       NursingCare?      @relation(fields: [nursingCareId], references: [id])
+  elderlyCare       ElderlyCare?      @relation(fields: [elderlyCareId], references: [id])
+  commandePharmacie CommandePharmacie? @relation(fields: [commandePharmacieId], references: [id])
 
   @@index([userId])
   @@index([status])
@@ -578,4 +590,208 @@ model SupportMessage {
   @@index([chatId])
   @@index([senderId])
   @@index([isRead])
+}
+
+// ─────────────────────────────────────────────────
+// MODULE PHARMACIE — ENUMS
+// ─────────────────────────────────────────────────
+
+enum MedicamentCategorie {
+  ANTIBIOTIQUE
+  ANALGESIQUE
+  ANTIPALUDEEN
+  ANTIHYPERTENSEUR
+  ANTIDIABETIQUE
+  ANTIINFLAMMATOIRE
+  ANTIPARASITAIRE
+  VITAMINES
+  CONTRACEPTIF
+  DERMATOLOGIE
+  OPHTALMOLOGIE
+  GASTROENTEROLOGIE
+  CARDIOVASCULAIRE
+  NEUROLOGIE
+  PEDIATRIE
+  AUTRE_MEDICAMENT
+}
+
+enum CommandePharmacieStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY_PICKUP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum OrdonnancePharmacieStatus {
+  UPLOADED
+  PROCESSING
+  FOUND
+  PARTIALLY_FOUND
+  NOT_FOUND
+  ORDERED
+}
+
+enum TypeLivraison {
+  CLICK_AND_COLLECT
+  LIVRAISON_DOMICILE
+}
+
+// ─────────────────────────────────────────────────
+// MODULE PHARMACIE — MODÈLES
+// ─────────────────────────────────────────────────
+
+model PharmacieProfile {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  nomPharmacie     String
+  numeroLicence    String   @unique
+  adresse          String
+  quartier         String
+  ville            String   @default("Brazzaville")
+  telephone        String
+  email            String?
+  logoUrl          String?
+  photoUrl         String?
+  description      String?
+  horaires         Json
+  latitude         Float?
+  longitude        Float?
+  isVerified       Boolean  @default(false)
+  isActive         Boolean  @default(true)
+  accepteLivraison Boolean  @default(false)
+  zoneLivraison    String?
+  notesMoyenne     Float?   @default(0)
+  nombreAvis       Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user        User               @relation("PharmacieUser", fields: [userId], references: [id], onDelete: Cascade)
+  medicaments MedicamentStock[]
+  commandes   CommandePharmacie[]
+  avis        AvisPharmacie[]
+
+  @@index([ville])
+  @@index([isVerified])
+  @@index([isActive])
+}
+
+model MedicamentStock {
+  id                String              @id @default(cuid())
+  pharmacieId       String
+  nomMedicament     String
+  nomGenerique      String?
+  marque            String?
+  categorie         MedicamentCategorie
+  description       String?
+  formeGalenique    String
+  dosage            String?
+  conditionnement   String?
+  prixUnitaire      Float
+  quantiteStock     Int                 @default(0)
+  stockMinimum      Int                 @default(5)
+  photoUrl          String?
+  ordonnanceRequise Boolean             @default(false)
+  estDisponible     Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  pharmacie      PharmacieProfile         @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  lignesCommande LigneCommandePharmacie[]
+
+  @@index([pharmacieId])
+  @@index([nomMedicament])
+  @@index([categorie])
+  @@index([estDisponible])
+  @@index([nomMedicament, pharmacieId])
+}
+
+model OrdonnancePharmacieRequest {
+  id                 String                    @id @default(cuid())
+  patientId          String
+  callCenterId       String?
+  ordonnanceUrl      String
+  ordonnanceType     String
+  prescriptionId     String?
+  status             OrdonnancePharmacieStatus @default(UPLOADED)
+  notesCallCenter    String?
+  medicamentsTrouves Json?
+  commandeId         String?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  patient    User  @relation("PatientOrdonnances",    fields: [patientId],    references: [id])
+  callCenter User? @relation("CallCenterOrdonnances", fields: [callCenterId], references: [id])
+
+  @@index([patientId])
+  @@index([status])
+}
+
+model CommandePharmacie {
+  id               String                  @id @default(cuid())
+  patientId        String
+  pharmacieId      String
+  agentId          String?
+  typeLivraison    TypeLivraison
+  status           CommandePharmacieStatus @default(PENDING)
+  adresseLivraison String?
+  villeLivraison   String?
+  instructions     String?
+  montantTotal     Float
+  montantLivraison Float                   @default(0)
+  ordonnanceUrl    String?
+  confirmedAt      DateTime?
+  preparedAt       DateTime?
+  deliveredAt      DateTime?
+  cancelledAt      DateTime?
+  cancelReason     String?
+  agentNotes       String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  patient   User              @relation("PatientCommandes", fields: [patientId],   references: [id])
+  pharmacie PharmacieProfile  @relation(fields: [pharmacieId], references: [id])
+  agent     User?             @relation("AgentCommandes",   fields: [agentId],     references: [id])
+  lignes    LigneCommandePharmacie[]
+  payment   Payment?
+
+  @@index([patientId])
+  @@index([pharmacieId])
+  @@index([agentId])
+  @@index([status])
+}
+
+model LigneCommandePharmacie {
+  id           String   @id @default(cuid())
+  commandeId   String
+  medicamentId String
+  quantite     Int
+  prixUnitaire Float
+  sousTotal    Float
+  createdAt    DateTime @default(now())
+
+  commande   CommandePharmacie @relation(fields: [commandeId],   references: [id], onDelete: Cascade)
+  medicament MedicamentStock   @relation(fields: [medicamentId], references: [id])
+
+  @@index([commandeId])
+  @@index([medicamentId])
+}
+
+model AvisPharmacie {
+  id          String   @id @default(cuid())
+  patientId   String
+  pharmacieId String
+  note        Int
+  commentaire String?
+  commandeId  String?
+  createdAt   DateTime @default(now())
+
+  patient   User             @relation("PatientAvis", fields: [patientId],   references: [id])
+  pharmacie PharmacieProfile @relation(fields: [pharmacieId], references: [id])
+
+  @@unique([patientId, pharmacieId, commandeId])
+  @@index([pharmacieId])
 }

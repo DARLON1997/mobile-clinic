@@ -11,6 +11,7 @@ const ROLE_ROUTES: Record<string, string[]> = {
   "/patient":      ["PATIENT"],
   "/call-center":  ["CALL_CENTER_AGENT"],
   "/agent":        ["AGENT_TERRAIN"],
+  "/pharmacie":    ["PHARMACIE"],
 }
 
 // Routes accessibles sans authentification

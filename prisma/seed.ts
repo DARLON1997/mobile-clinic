@@ -13,12 +13,28 @@
  *   patient2@test.cg              / Patient@2025 (Marie Ngoma, Pointe-Noire)
  */
 
+import { readFileSync } from "fs"
+import { resolve }      from "path"
 import { PrismaClient } from "@prisma/client"
-import bcrypt from "bcryptjs"
+import { PrismaPg }     from "@prisma/adapter-pg"
+import bcrypt           from "bcryptjs"
 
-const prisma = new PrismaClient({
-  log: ["warn", "error"],
-})
+// Charge .env.local comme Next.js
+function loadEnv(file: string) {
+  try {
+    for (const line of readFileSync(resolve(process.cwd(), file), "utf-8").split("\n")) {
+      const m = line.match(/^([^#\s][^=]*)=(.*)$/)
+      if (m && !process.env[m[1].trim()]) {
+        process.env[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, "")
+      }
+    }
+  } catch { /* ignoré */ }
+}
+loadEnv(".env.local")
+loadEnv(".env")
+
+const adapter = new PrismaPg(process.env.DATABASE_URL!)
+const prisma  = new PrismaClient({ adapter, log: ["warn", "error"] })
 
 const SALT_ROUNDS = 12
 
@@ -265,15 +281,172 @@ async function main() {
     })
   }
 
+  // ── 8. Pharmacies de test ────────────────────────────────────────────────────
+  console.log("\n💊 Création : Pharmacies de test")
+
+  const pharmacieHash = await hashPassword("Pharmacie@2025")
+
+  const defaultHoraires = {
+    lundi:    { open: "08:00", close: "20:00", closed: false },
+    mardi:    { open: "08:00", close: "20:00", closed: false },
+    mercredi: { open: "08:00", close: "20:00", closed: false },
+    jeudi:    { open: "08:00", close: "20:00", closed: false },
+    vendredi: { open: "08:00", close: "20:00", closed: false },
+    samedi:   { open: "09:00", close: "18:00", closed: false },
+    dimanche: { open: "09:00", close: "14:00", closed: true },
+  }
+
+  const pharmaciesData = [
+    {
+      email:        "pharmacie.centrale@mobileclinic.cg",
+      phone:        "+242060000030",
+      nomPharmacie: "Pharmacie Centrale",
+      numeroLicence: "PH-BZV-001",
+      adresse:      "Avenue de l'Indépendance, Centre-ville",
+      quartier:     "Centre-ville",
+      isVerified:   true,
+      accepteLivraison: true,
+    },
+    {
+      email:        "pharmacie.plateau@mobileclinic.cg",
+      phone:        "+242060000031",
+      nomPharmacie: "Pharmacie du Plateau",
+      numeroLicence: "PH-BZV-002",
+      adresse:      "Rue du Plateau, Quartier Plateau",
+      quartier:     "Plateau",
+      isVerified:   true,
+      accepteLivraison: false,
+    },
+    {
+      email:        "pharmacie.poto@mobileclinic.cg",
+      phone:        "+242060000032",
+      nomPharmacie: "Pharmacie Poto-Poto",
+      numeroLicence: "PH-BZV-003",
+      adresse:      "Boulevard Denis Sassou Nguesso, Poto-Poto",
+      quartier:     "Poto-Poto",
+      isVerified:   false,
+      accepteLivraison: true,
+    },
+  ]
+
+  const medicamentsDeBase = [
+    {
+      nomMedicament: "Paracétamol 500mg",
+      nomGenerique:  "Paracétamol",
+      categorie:     "ANALGESIQUE" as const,
+      formeGalenique: "Comprimé",
+      dosage:        "500mg",
+      conditionnement: "Boîte de 16 comprimés",
+      prixUnitaire:  500,
+      quantiteStock: 200,
+      stockMinimum:  20,
+      ordonnanceRequise: false,
+    },
+    {
+      nomMedicament: "Amoxicilline 500mg",
+      nomGenerique:  "Amoxicilline",
+      categorie:     "ANTIBIOTIQUE" as const,
+      formeGalenique: "Gélule",
+      dosage:        "500mg",
+      conditionnement: "Boîte de 16 gélules",
+      prixUnitaire:  2500,
+      quantiteStock: 80,
+      stockMinimum:  10,
+      ordonnanceRequise: true,
+    },
+    {
+      nomMedicament: "Artémether-Luméfantrine",
+      nomGenerique:  "Artémether",
+      categorie:     "ANTIPALUDEEN" as const,
+      formeGalenique: "Comprimé",
+      dosage:        "20/120mg",
+      conditionnement: "Boîte de 24 comprimés",
+      prixUnitaire:  3500,
+      quantiteStock: 60,
+      stockMinimum:  10,
+      ordonnanceRequise: false,
+    },
+    {
+      nomMedicament: "Ibuprofène 400mg",
+      nomGenerique:  "Ibuprofène",
+      categorie:     "ANTIINFLAMMATOIRE" as const,
+      formeGalenique: "Comprimé enrobé",
+      dosage:        "400mg",
+      conditionnement: "Boîte de 20 comprimés",
+      prixUnitaire:  1000,
+      quantiteStock: 150,
+      stockMinimum:  15,
+      ordonnanceRequise: false,
+    },
+    {
+      nomMedicament: "Métronidazole 250mg",
+      nomGenerique:  "Métronidazole",
+      categorie:     "ANTIBIOTIQUE" as const,
+      formeGalenique: "Comprimé",
+      dosage:        "250mg",
+      conditionnement: "Boîte de 20 comprimés",
+      prixUnitaire:  1500,
+      quantiteStock: 100,
+      stockMinimum:  12,
+      ordonnanceRequise: true,
+    },
+  ]
+
+  for (const pharma of pharmaciesData) {
+    console.log(`🏥 Création : ${pharma.nomPharmacie}`)
+    const user = await prisma.user.upsert({
+      where: { email: pharma.email },
+      update: {},
+      create: {
+        email:        pharma.email,
+        phone:        pharma.phone,
+        passwordHash: pharmacieHash,
+        role:         "PHARMACIE",
+        isActive:     true,
+        isVerified:   true,
+        pharmacieProfile: {
+          create: {
+            nomPharmacie:    pharma.nomPharmacie,
+            numeroLicence:   pharma.numeroLicence,
+            adresse:         pharma.adresse,
+            quartier:        pharma.quartier,
+            ville:           "Brazzaville",
+            telephone:       pharma.phone,
+            email:           pharma.email,
+            horaires:        defaultHoraires,
+            isVerified:      pharma.isVerified,
+            accepteLivraison: pharma.accepteLivraison,
+          },
+        },
+      },
+      include: { pharmacieProfile: true },
+    })
+
+    if (user.pharmacieProfile) {
+      const pharmacieId = user.pharmacieProfile.id
+      for (const med of medicamentsDeBase) {
+        const existing = await prisma.medicamentStock.findFirst({
+          where: { pharmacieId, nomMedicament: med.nomMedicament },
+        })
+        if (!existing) {
+          await prisma.medicamentStock.create({ data: { pharmacieId, ...med } })
+        }
+      }
+    }
+  }
+
   console.log("\n✅ Seed terminé avec succès !\n")
   console.log("─────────────────────────────────────────────")
   console.log("  Comptes de test :")
-  console.log("  admin@mobileclinic.cg         / Admin@2025")
-  console.log("  callcenter@mobileclinic.cg    / CallCenter@2025")
-  console.log("  dr.mbemba@mobileclinic.cg     / Doctor@2025")
-  console.log("  agent.terrain@mobileclinic.cg / Agent@2025")
-  console.log("  patient1@test.cg              / Patient@2025")
-  console.log("  patient2@test.cg              / Patient@2025")
+  console.log("  admin@mobileclinic.cg                 / Admin@2025")
+  console.log("  callcenter@mobileclinic.cg            / CallCenter@2025")
+  console.log("  dr.mbemba@mobileclinic.cg             / Doctor@2025")
+  console.log("  agent.terrain@mobileclinic.cg         / Agent@2025")
+  console.log("  patient1@test.cg                      / Patient@2025")
+  console.log("  patient2@test.cg                      / Patient@2025")
+  console.log("  pharmacie.centrale@mobileclinic.cg    / Pharmacie@2025")
+  console.log("  pharmacie.plateau@mobileclinic.cg     / Pharmacie@2025")
+  console.log("  pharmacie.poto@mobileclinic.cg        / Pharmacie@2025")
   console.log("─────────────────────────────────────────────\n")
 }
 

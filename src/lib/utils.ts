@@ -17,6 +17,7 @@ export function getDashboardUrl(role: string): string {
     MEDECIN:           "/doctor",
     AGENT_TERRAIN:     "/agent",
     PATIENT:           "/patient",
+    PHARMACIE:         "/pharmacie",
   }
   return dashboards[role] ?? "/"
 }

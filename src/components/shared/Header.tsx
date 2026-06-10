@@ -8,6 +8,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   MEDECIN:           "Médecin",
   AGENT_TERRAIN:     "Agent Terrain",
   PATIENT:           "Patient",
+  PHARMACIE:         "Pharmacie",
 }
 
 interface HeaderProps {

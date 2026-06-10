@@ -10,6 +10,7 @@ export type UserRole =
   | "MEDECIN"
   | "AGENT_TERRAIN"
   | "PATIENT"
+  | "PHARMACIE"
 
 export type AppointmentStatus =
   | "PENDING"
@@ -193,4 +194,109 @@ export const HOME_VISIT_STATUS_LABELS: Record<HomeVisitStatus, string> = {
   ARRIVED:   "Arrivé",
   COMPLETED: "Terminé",
   CANCELLED: "Annulé",
+}
+
+// ─── Module Pharmacie ─────────────────────────────────────────────────────────
+
+export type MedicamentCategorie =
+  | "ANTIBIOTIQUE" | "ANALGESIQUE" | "ANTIPALUDEEN" | "ANTIHYPERTENSEUR"
+  | "ANTIDIABETIQUE" | "ANTIINFLAMMATOIRE" | "ANTIPARASITAIRE" | "VITAMINES"
+  | "CONTRACEPTIF" | "DERMATOLOGIE" | "OPHTALMOLOGIE" | "GASTROENTEROLOGIE"
+  | "CARDIOVASCULAIRE" | "NEUROLOGIE" | "PEDIATRIE" | "AUTRE_MEDICAMENT"
+
+export type CommandePharmacieStatus =
+  | "PENDING" | "CONFIRMED" | "PREPARING" | "READY_PICKUP"
+  | "OUT_FOR_DELIVERY" | "DELIVERED" | "CANCELLED" | "REFUNDED"
+
+export type OrdonnancePharmacieStatus =
+  | "UPLOADED" | "PROCESSING" | "FOUND" | "PARTIALLY_FOUND" | "NOT_FOUND" | "ORDERED"
+
+export type TypeLivraison = "CLICK_AND_COLLECT" | "LIVRAISON_DOMICILE"
+
+export type PharmacieProfileData = {
+  id:              string
+  userId:          string
+  nomPharmacie:    string
+  numeroLicence:   string
+  adresse:         string
+  quartier:        string
+  ville:           string
+  telephone:       string
+  email:           string | null
+  logoUrl:         string | null
+  horaires:        Record<string, { open: string; close: string; closed?: boolean }>
+  isVerified:      boolean
+  isActive:        boolean
+  accepteLivraison: boolean
+  notesMoyenne:    number | null
+  nombreAvis:      number
+}
+
+export type MedicamentStockData = {
+  id:               string
+  pharmacieId:      string
+  nomMedicament:    string
+  nomGenerique:     string | null
+  marque:           string | null
+  categorie:        MedicamentCategorie
+  formeGalenique:   string
+  dosage:           string | null
+  conditionnement:  string | null
+  prixUnitaire:     number
+  quantiteStock:    number
+  stockMinimum:     number
+  photoUrl:         string | null
+  ordonnanceRequise: boolean
+  estDisponible:    boolean
+}
+
+export type CommandePharmacieWithRelations = {
+  id:              string
+  patientId:       string
+  pharmacieId:     string
+  typeLivraison:   TypeLivraison
+  status:          CommandePharmacieStatus
+  adresseLivraison: string | null
+  montantTotal:    number
+  montantLivraison: number
+  createdAt:       Date
+  patient: { patientProfile: { firstName: string; lastName: string } | null; phone: string }
+  pharmacie: { nomPharmacie: string; adresse: string; telephone: string }
+  lignes: Array<{
+    quantite:    number
+    prixUnitaire: number
+    sousTotal:   number
+    medicament:  { nomMedicament: string; formeGalenique: string }
+  }>
+  payment: { status: PaymentStatus; amount: number } | null
+}
+
+export const COMMANDE_PHARMACIE_STATUS_LABELS: Record<CommandePharmacieStatus, string> = {
+  PENDING:          "En attente",
+  CONFIRMED:        "Confirmée",
+  PREPARING:        "En préparation",
+  READY_PICKUP:     "Prête à retirer",
+  OUT_FOR_DELIVERY: "En livraison",
+  DELIVERED:        "Livrée",
+  CANCELLED:        "Annulée",
+  REFUNDED:         "Remboursée",
+}
+
+export const MEDICAMENT_CATEGORIE_LABELS: Record<MedicamentCategorie, string> = {
+  ANTIBIOTIQUE:      "Antibiotique",
+  ANALGESIQUE:       "Analgésique",
+  ANTIPALUDEEN:      "Antipaludéen",
+  ANTIHYPERTENSEUR:  "Antihypertenseur",
+  ANTIDIABETIQUE:    "Antidiabétique",
+  ANTIINFLAMMATOIRE: "Anti-inflammatoire",
+  ANTIPARASITAIRE:   "Antiparasitaire",
+  VITAMINES:         "Vitamines",
+  CONTRACEPTIF:      "Contraceptif",
+  DERMATOLOGIE:      "Dermatologie",
+  OPHTALMOLOGIE:     "Ophtalmologie",
+  GASTROENTEROLOGIE: "Gastroentérologie",
+  CARDIOVASCULAIRE:  "Cardiovasculaire",
+  NEUROLOGIE:        "Neurologie",
+  PEDIATRIE:         "Pédiatrie",
+  AUTRE_MEDICAMENT:  "Autre",
 }

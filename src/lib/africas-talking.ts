@@ -54,4 +54,24 @@ export const smsTemplates = {
 
   appointmentRejected: (patientName: string, reason?: string) =>
     `Bonjour ${patientName}, votre demande de RDV n'a pas pu etre acceptée${reason ? ` : ${reason}` : ""}. Contactez notre Call Center. Mobile Clinic`,
+
+  // ── Pharmacie ────────────────────────────────────────────────────────────────
+
+  commandeConfirmee: (patientName: string, pharmacie: string) =>
+    `Mobile Clinic : Votre commande chez ${pharmacie} a ete confirmee. Preparation en cours.`,
+
+  commandePrete: (patientName: string, pharmacie: string, adresse: string) =>
+    `Mobile Clinic : Vos medicaments sont prets ! Retirez-les chez ${pharmacie}, ${adresse}.`,
+
+  commandeLivraison: (_patientName: string) =>
+    `Mobile Clinic : Votre livreur est en route. Preparez-vous a receptionner vos medicaments.`,
+
+  commandeLivree: (_patientName: string) =>
+    `Mobile Clinic : Vos medicaments ont ete livres. Bonne sante !`,
+
+  ordonnanceTraitee: (patientName: string, status: string) =>
+    `Mobile Clinic : Bonjour ${patientName}, votre ordonnance a ete traitee. Statut : ${status}. Connectez-vous pour plus de details.`,
+
+  pharmacieBienvenue: (nomPharmacie: string, email: string, password: string) =>
+    `Mobile Clinic : Bienvenue ${nomPharmacie} ! Votre espace partenaire est pret. Email : ${email} | Mot de passe : ${password}. Changez-le a la connexion.`,
 } as const

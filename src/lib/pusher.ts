@@ -53,3 +53,55 @@ export async function triggerAdminNotification(
 ) {
   await pusherServer.trigger(ADMIN_CHANNEL, event, payload)
 }
+
+// ─── Canaux Pharmacie ─────────────────────────────────────────────────────────
+
+/**
+ * Canal pharmacie partenaire.
+ * channel: `pharmacie-${pharmacieId}`
+ * events:
+ *   - "new-commande"      : { commandeId, montantTotal, typeLivraison }
+ *   - "stock-alert"       : { medicamentId, nomMedicament, quantiteStock }
+ *   - "payment-received"  : { commandeId, montantTotal }
+ */
+export function pharmacieChannel(pharmacieId: string) {
+  return `pharmacie-${pharmacieId}`
+}
+
+/**
+ * Canal call-center-inbox (partagé).
+ * Ajoute l'event new-ordonnance-request.
+ */
+export const CALL_CENTER_INBOX_CHANNEL = "call-center-inbox"
+
+/**
+ * Canal patient (notifications pharmacie).
+ * channel: `patient-${patientId}`
+ * events:
+ *   - "ordonnance-processed" : { ordonnanceId, status }
+ *   - "commande-status"      : { commandeId, status }
+ *   - "medicament-found"     : { ordonnanceId }
+ */
+export function patientChannel(patientId: string) {
+  return `patient-${patientId}`
+}
+
+export async function triggerPharmacieNotification(
+  pharmacieId: string,
+  event: "new-commande" | "stock-alert" | "payment-received",
+  payload: object
+) {
+  await pusherServer.trigger(pharmacieChannel(pharmacieId), event, payload)
+}
+
+export async function triggerCallCenterOrdonnance(payload: object) {
+  await pusherServer.trigger(CALL_CENTER_INBOX_CHANNEL, "new-ordonnance-request", payload)
+}
+
+export async function triggerPatientNotification(
+  patientId: string,
+  event: "ordonnance-processed" | "commande-status" | "medicament-found",
+  payload: object
+) {
+  await pusherServer.trigger(patientChannel(patientId), event, payload)
+}

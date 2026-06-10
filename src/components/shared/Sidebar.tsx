@@ -10,7 +10,8 @@ import {
   LayoutDashboard, CalendarCheck, Users, ShieldCheck,
   DollarSign, ScrollText, Video, History, BookOpen,
   Home, FileText, MapPin, LogOut, Menu, X, Heart,
-  FlaskConical, Syringe, MessageCircle,
+  FlaskConical, Syringe, MessageCircle, Pill,
+  ShoppingCart, Settings, TrendingUp, Store,
 } from "lucide-react"
 
 type NavItem = { href: string; label: string; icon: React.ElementType }
@@ -24,6 +25,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { href: "/admin/lab-exams",      label: "Examens labo",     icon: FlaskConical },
     { href: "/admin/nursing-cares",  label: "Soins infirmiers", icon: Syringe },
     { href: "/admin/elderly-cares",  label: "Soins seniors",    icon: Users },
+    { href: "/admin/pharmacies",     label: "Pharmacies",       icon: Store },
     { href: "/admin/finances",       label: "Finances",         icon: DollarSign },
     { href: "/admin/audit",          label: "Journal d'audit",  icon: ScrollText },
   ],
@@ -42,24 +44,34 @@ const NAV: Record<UserRole, NavItem[]> = {
     { href: "/patient/elderly-care",   label: "Soins seniors",   icon: Users },
     { href: "/patient/medical-record", label: "Dossier médical", icon: FileText },
     { href: "/patient/prescriptions",  label: "Ordonnances",     icon: BookOpen },
+    { href: "/patient/pharmacie",      label: "Pharmacie",       icon: Pill },
   ],
   CALL_CENTER_AGENT: [
-    { href: "/call-center",              label: "Tableau de bord", icon: LayoutDashboard },
-    { href: "/call-center/appointments", label: "Rendez-vous",     icon: CalendarCheck },
-    { href: "/call-center/home-visits",  label: "Soins domicile",  icon: Home },
-    { href: "/call-center/chats",        label: "Conversations",   icon: MessageCircle },
+    { href: "/call-center",                  label: "Tableau de bord", icon: LayoutDashboard },
+    { href: "/call-center/appointments",     label: "Rendez-vous",     icon: CalendarCheck },
+    { href: "/call-center/home-visits",      label: "Soins domicile",  icon: Home },
+    { href: "/call-center/chats",            label: "Conversations",   icon: MessageCircle },
+    { href: "/call-center/ordonnances",      label: "Ordonnances",     icon: Pill },
   ],
   AGENT_TERRAIN: [
     { href: "/agent", label: "Mes missions", icon: MapPin },
   ],
+  PHARMACIE: [
+    { href: "/pharmacie",           label: "Tableau de bord", icon: LayoutDashboard },
+    { href: "/pharmacie/commandes", label: "Commandes",       icon: ShoppingCart },
+    { href: "/pharmacie/catalogue", label: "Mon catalogue",   icon: Pill },
+    { href: "/pharmacie/stats",     label: "Statistiques",    icon: TrendingUp },
+    { href: "/pharmacie/profil",    label: "Mon profil",      icon: Settings },
+  ],
 }
 
 const ROLE_LABEL: Record<UserRole, string> = {
-  SUPER_ADMIN:      "Administrateur",
-  MEDECIN:          "Médecin",
-  PATIENT:          "Patient",
-  CALL_CENTER_AGENT:"Call Center",
-  AGENT_TERRAIN:    "Agent Terrain",
+  SUPER_ADMIN:       "Administrateur",
+  MEDECIN:           "Médecin",
+  PATIENT:           "Patient",
+  CALL_CENTER_AGENT: "Call Center",
+  AGENT_TERRAIN:     "Agent Terrain",
+  PHARMACIE:         "Pharmacie",
 }
 
 interface SidebarProps {

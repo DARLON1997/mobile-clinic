@@ -1,4 +1,4 @@
-import { Video, Home, TestTube2 } from "lucide-react"
+import { Video, Home, TestTube2, Pill } from "lucide-react"
 
 const SERVICES = [
   {
@@ -31,6 +31,16 @@ const SERVICES = [
     details: ["Prise de sang, ECBU, etc.", "Résultats dans votre espace", "Transmission sécurisée"],
     color: "#9B6DD6",
     bg: "rgba(155,109,214,0.08)",
+  },
+  {
+    icon: Pill,
+    label: "PHARMACIE",
+    title: "Pharmacie en ligne",
+    description:
+      "Recherchez vos médicaments, soumettez votre ordonnance et faites-vous livrer à domicile par nos pharmacies partenaires à Brazzaville.",
+    details: ["Recherche de médicaments", "Ordonnance numérique", "Livraison MTN / Airtel Money"],
+    color: "#C8906A",
+    bg: "rgba(200,144,106,0.08)",
   },
 ]
 

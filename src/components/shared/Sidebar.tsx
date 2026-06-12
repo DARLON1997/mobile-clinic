@@ -12,6 +12,7 @@ import {
   Home, FileText, MapPin, LogOut, Menu, X, Heart,
   FlaskConical, Syringe, MessageCircle, Pill,
   ShoppingCart, Settings, TrendingUp, Store,
+  CalendarDays, BookUser,
 } from "lucide-react"
 
 type NavItem = { href: string; label: string; icon: React.ElementType }
@@ -49,9 +50,11 @@ const NAV: Record<UserRole, NavItem[]> = {
   CALL_CENTER_AGENT: [
     { href: "/call-center",                  label: "Tableau de bord", icon: LayoutDashboard },
     { href: "/call-center/appointments",     label: "Rendez-vous",     icon: CalendarCheck },
+    { href: "/call-center/agenda",           label: "Agenda médecins", icon: CalendarDays },
     { href: "/call-center/home-visits",      label: "Soins domicile",  icon: Home },
     { href: "/call-center/chats",            label: "Conversations",   icon: MessageCircle },
     { href: "/call-center/ordonnances",      label: "Ordonnances",     icon: Pill },
+    { href: "/call-center/doctors",          label: "Répertoire",      icon: BookUser },
   ],
   AGENT_TERRAIN: [
     { href: "/agent", label: "Mes missions", icon: MapPin },

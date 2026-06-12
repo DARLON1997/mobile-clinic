@@ -8,6 +8,8 @@ import { formatDateFR } from "@/lib/utils"
 import { Video, FileText, RefreshCw, Clock, CreditCard } from "lucide-react"
 import type { AppointmentWithRelations, AppointmentStatus } from "@/types"
 
+const PAYMENT_ENABLED = process.env.NEXT_PUBLIC_PAYMENT_ENABLED === "true"
+
 interface SearchParams { searchParams: Promise<{ filter?: string }> }
 
 export default async function PatientAppointmentsPage({ searchParams }: SearchParams) {
@@ -124,13 +126,19 @@ export default async function PatientAppointmentsPage({ searchParams }: SearchPa
                         En attente d&apos;approbation
                       </span>
                     )}
-                    {(appt.status === "PAYMENT_PENDING" || appt.status === "APPROVED") && (
+                    {PAYMENT_ENABLED && (appt.status === "PAYMENT_PENDING" || appt.status === "APPROVED") && (
                       <Link href={`/patient/pay/${appt.id}`}>
                         <Button size="sm" className="text-xs h-8">
                           <CreditCard className="h-3.5 w-3.5" />
                           Payer
                         </Button>
                       </Link>
+                    )}
+                    {!PAYMENT_ENABLED && (appt.status === "PAYMENT_PENDING" || appt.status === "APPROVED") && (
+                      <span className="flex items-center gap-1 text-xs text-orange-600">
+                        <Clock className="h-3.5 w-3.5" />
+                        En attente de confirmation
+                      </span>
                     )}
                     {(isJoinable || isActive) && (
                       <Link href={`/patient/consultation/${appt.id}`}>

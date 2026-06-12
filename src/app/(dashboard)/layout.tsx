@@ -23,10 +23,25 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     return <AgentShell>{children}</AgentShell>
   }
 
+  const paymentEnabled = process.env.NEXT_PUBLIC_PAYMENT_ENABLED === "true"
+
   return (
     <div className="flex min-h-screen bg-[#0A0A0A]">
       <Sidebar role={role} userName={session.user.name ?? session.user.email ?? null} />
       <div className="flex flex-1 flex-col overflow-hidden md:ml-0">
+        {role === "PATIENT" && !paymentEnabled && (
+          <div style={{
+            background: "linear-gradient(135deg, rgba(200,144,106,0.15), rgba(200,144,106,0.05))",
+            borderBottom: "1px solid rgba(200,144,106,0.3)",
+            padding: "10px 24px",
+            textAlign: "center" as const,
+            fontSize: "13px",
+            color: "#C8906A",
+            letterSpacing: "0.04em",
+          }}>
+            🚀 Lancement Mobile Clinic — Consultations gratuites pendant la période de lancement. Paiement en ligne bientôt disponible.
+          </div>
+        )}
         <main className="mc-dashboard flex-1 overflow-y-auto p-4 md:p-8">
           {children}
         </main>

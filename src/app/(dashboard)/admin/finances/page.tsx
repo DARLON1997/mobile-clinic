@@ -31,12 +31,20 @@ export default async function FinancesPage() {
     }),
   ])
 
+  const paymentEnabled = process.env.NEXT_PUBLIC_PAYMENT_ENABLED === "true"
+
   return (
     <div className="mx-auto max-w-6xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Finances</h1>
         <p className="text-sm text-gray-500">Suivi des paiements et remboursements</p>
       </div>
+
+      {!paymentEnabled && (
+        <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          ⚠️ <strong>Module paiement désactivé</strong> — Lancement gratuit en cours. Les RDV sont confirmés sans paiement. Réactivation prévue en V2.
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="mb-8 grid gap-4 sm:grid-cols-3">

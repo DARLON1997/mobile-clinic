@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { initializePayment } from "@/lib/flutterwave"
+import { FEATURES } from "@/lib/features"
 import { z } from "zod"
 
 const schema = z.object({
@@ -10,6 +11,10 @@ const schema = z.object({
 })
 
 export async function POST(req: Request) {
+  if (!FEATURES.PAYMENT_ENABLED) {
+    return NextResponse.json({ error: "Module paiement non disponible" }, { status: 503 })
+  }
+
   const session = await auth()
   if (!session || session.user.role !== "PATIENT") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 })

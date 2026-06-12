@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { cn, formatXAF } from "@/lib/utils"
+import { FEATURES } from "@/lib/features"
 import {
   Video, Home, TestTube2, ArrowLeft, ArrowRight, Check, Clock, CreditCard
 } from "lucide-react"
@@ -109,21 +110,35 @@ export default function BookPage() {
       <p className="mt-2 text-sm text-gray-500">
         Votre demande est soumise à l&apos;administrateur. Vous recevrez une notification dès l&apos;approbation.
       </p>
-      <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 p-4 text-left">
-        <div className="flex items-start gap-2">
-          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-          <div className="text-sm text-amber-800">
-            <p className="font-semibold">Prochaine étape : Paiement</p>
-            <p className="mt-0.5 text-xs">Une fois approuvée, un bouton <strong>"Payer"</strong> apparaîtra dans <strong>"Mes rendez-vous"</strong>. Le paiement confirme la consultation.</p>
+      {FEATURES.PAYMENT_ENABLED ? (
+        <>
+          <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 p-4 text-left">
+            <div className="flex items-start gap-2">
+              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <div className="text-sm text-amber-800">
+                <p className="font-semibold">Prochaine étape : Paiement</p>
+                <p className="mt-0.5 text-xs">Une fois approuvée, un bouton <strong>&quot;Payer&quot;</strong> apparaîtra dans <strong>&quot;Mes rendez-vous&quot;</strong>. Le paiement confirme la consultation.</p>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 rounded-xl bg-blue-50 border border-blue-200 p-4 text-left">
+            <div className="flex items-start gap-2">
+              <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+              <p className="text-xs text-blue-800">Tarif : <strong>{selectedDoctor ? formatXAF(selectedDoctor.consultationFee) : ""}</strong> — payable par MTN Mobile Money, Airtel Money ou carte bancaire.</p>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="mt-4 rounded-xl border p-4 text-left" style={{ background: "rgba(76,175,135,0.08)", borderColor: "#4CAF87" }}>
+          <div className="flex items-start gap-2">
+            <Check className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#4CAF87" }} />
+            <div className="text-sm" style={{ color: "#2d6a4f" }}>
+              <p className="font-semibold">🎉 Lancement — Consultations gratuites !</p>
+              <p className="mt-0.5 text-xs">Dans le cadre de notre lancement, les consultations sont offertes. Une fois approuvée par l&apos;administrateur, votre RDV sera automatiquement confirmé.</p>
+            </div>
           </div>
         </div>
-      </div>
-      <div className="mt-4 rounded-xl bg-blue-50 border border-blue-200 p-4 text-left">
-        <div className="flex items-start gap-2">
-          <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-          <p className="text-xs text-blue-800">Tarif : <strong>{selectedDoctor ? formatXAF(selectedDoctor.consultationFee) : ""}</strong> — payable par MTN Mobile Money, Airtel Money ou carte bancaire.</p>
-        </div>
-      </div>
+      )}
       <Button onClick={() => router.push("/patient/appointments")} className="mt-6 w-full" size="lg">
         Voir mes rendez-vous
       </Button>
@@ -293,7 +308,13 @@ export default function BookPage() {
                   </span>
                 </div>
               )}
-              {selectedDoctor && (
+              {selectedDoctor && !FEATURES.PAYMENT_ENABLED && (
+                <div className="flex justify-between font-semibold border-t border-gray-200 pt-2">
+                  <span style={{ color: "#4CAF87" }}>🎉 Gratuit — Période de lancement</span>
+                  <span style={{ color: "#4CAF87" }}>0 XAF</span>
+                </div>
+              )}
+            {selectedDoctor && FEATURES.PAYMENT_ENABLED && (
                 <div className="flex justify-between font-semibold border-t border-gray-200 pt-2">
                   <span>Tarif (payable après approbation)</span>
                   <span className="text-blue-700">{formatXAF(selectedDoctor.consultationFee)}</span>
@@ -301,13 +322,22 @@ export default function BookPage() {
               )}
             </div>
 
-            {/* Note info paiement */}
-            <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 p-3">
-              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-              <p className="text-xs text-amber-800">
-                Le paiement se fait <strong>après approbation</strong> par l&apos;administrateur. Un bouton &quot;Payer&quot; apparaîtra dans vos rendez-vous.
-              </p>
-            </div>
+            {/* Note info */}
+            {FEATURES.PAYMENT_ENABLED ? (
+              <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 p-3">
+                <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <p className="text-xs text-amber-800">
+                  Le paiement se fait <strong>après approbation</strong> par l&apos;administrateur. Un bouton &quot;Payer&quot; apparaîtra dans vos rendez-vous.
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 rounded-xl p-3" style={{ background: "rgba(76,175,135,0.08)", border: "1px solid #4CAF87" }}>
+                <Check className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#4CAF87" }} />
+                <p className="text-xs" style={{ color: "#2d6a4f" }}>
+                  Dans le cadre du <strong>lancement Mobile Clinic</strong>, les consultations sont <strong>gratuites</strong>. Votre RDV sera confirmé automatiquement après approbation.
+                </p>
+              </div>
+            )}
 
             {/* Motif */}
             <div>

@@ -7,6 +7,7 @@ import { sendEmail, emailTemplates } from "@/lib/mailer"
 import { createVideoRoom } from "@/lib/daily"
 import { triggerAdminNotification } from "@/lib/pusher"
 import { formatDateFR, formatXAF } from "@/lib/utils"
+import { FEATURES } from "@/lib/features"
 
 const approveSchema = z.object({
   appointmentId: z.string().cuid(),
@@ -157,11 +158,16 @@ export async function POST(req: Request) {
       }
 
       // RÈGLE R8 : transaction atomique
+      const newStatus = FEATURES.PAYMENT_ENABLED ? "PAYMENT_PENDING" : "CONFIRMED"
+      const patientMsg = FEATURES.PAYMENT_ENABLED
+        ? `Votre consultation avec ${doctorName} le ${dateStr} est approuvée. Procédez au paiement pour confirmer.`
+        : `Votre consultation avec ${doctorName} le ${dateStr} est confirmée. Rejoignez la salle vidéo à l'heure prévue.`
+
       const updated = await prisma.$transaction(async (tx) => {
         const appt = await tx.appointment.update({
           where: { id: appointmentId },
           data: {
-            status:          "PAYMENT_PENDING",
+            status:          newStatus,
             adminApprovedAt: new Date(),           // RÈGLE R1 : timestamp explicite
             adminApprovedBy: session.user.id,
             adminNote:       adminNote ?? null,
@@ -169,6 +175,21 @@ export async function POST(req: Request) {
             videoRoomUrl:    videoRoomUrl  ?? undefined,
           },
         })
+
+        // Paiement fictif si module désactivé (maintient l'intégrité relationnelle)
+        if (!FEATURES.PAYMENT_ENABLED) {
+          await tx.payment.create({
+            data: {
+              userId:        appointment.patientId,
+              appointmentId: appointmentId,
+              amount:        0,
+              currency:      "XAF",
+              method:        "GRATUIT_LANCEMENT",
+              status:        "PAID",
+              flwRef:        `FREE-LAUNCH-${Date.now()}`,
+            },
+          })
+        }
 
         // RÈGLE R3 : audit APPROVE
         await tx.auditLog.create({
@@ -187,7 +208,7 @@ export async function POST(req: Request) {
             userId:  appointment.patientId,
             type:    "APPOINTMENT_APPROVED",
             title:   "RDV approuvé ✅",
-            message: `Votre consultation avec ${doctorName} le ${dateStr} est approuvée. Procédez au paiement pour confirmer.`,
+            message: patientMsg,
           },
         })
 

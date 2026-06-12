@@ -100,7 +100,7 @@ export async function POST(req: Request) {
     }
 
     // Vérifier que le médecin est validé
-    const doctor = await prisma.doctorProfile.findUnique({
+    const doctor = await prisma.doctorProfile.findFirst({
       where: { userId: data.doctorId, isVerifiedByAdmin: true },
     })
     if (!doctor) {

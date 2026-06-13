@@ -129,12 +129,35 @@ export async function POST(req: Request) {
       }, { status: 409 })
     }
 
-    // RÈGLE R8 : transaction
-    const appointment = await prisma.$transaction(async (tx) => {
-      // Patient booking directly → skip Call Center step, go straight to admin
-      const initialStatus = session.user.role === "PATIENT" ? "AWAITING_APPROVAL" : "PENDING"
-
-      const appt = await tx.appointment.create({
+    // Patient → opération unique (pas besoin de transaction)
+    // Call Center → transaction atomique (RDV + notification)
+    let appointment
+    if (session.user.role === "CALL_CENTER_AGENT") {
+      appointment = await prisma.$transaction(async (tx) => {
+        const appt = await tx.appointment.create({
+          data: {
+            patientId,
+            doctorId:    data.doctorId,
+            scheduledAt,
+            duration:    data.duration,
+            reason:      data.reason,
+            notes:       data.notes,
+            status:      "PENDING" as const,
+            callCenterId: session.user.id,
+          },
+        })
+        await tx.notification.create({
+          data: {
+            userId:  patientId!,
+            type:    "APPOINTMENT_CREATED",
+            title:   "Demande de RDV créée",
+            message: "Une demande de rendez-vous a été enregistrée. Elle sera soumise à l'Admin pour autorisation.",
+          },
+        })
+        return appt
+      })
+    } else {
+      appointment = await prisma.appointment.create({
         data: {
           patientId,
           doctorId:    data.doctorId,
@@ -142,26 +165,10 @@ export async function POST(req: Request) {
           duration:    data.duration,
           reason:      data.reason,
           notes:       data.notes,
-          status:      initialStatus,
-          callCenterId: session.user.role === "CALL_CENTER_AGENT" ? session.user.id : undefined,
-          // adminApprovedAt reste NULL — RÈGLE R1
+          status:      "AWAITING_APPROVAL" as const,
         },
       })
-
-      // Notification patient si créé par Call Center
-      if (session.user.role === "CALL_CENTER_AGENT") {
-        await tx.notification.create({
-          data: {
-            userId:  patientId,
-            type:    "APPOINTMENT_CREATED",
-            title:   "Demande de RDV créée",
-            message: "Une demande de rendez-vous a été enregistrée. Elle sera soumise à l'Admin pour autorisation.",
-          },
-        })
-      }
-
-      return appt
-    })
+    }
 
     // Notifier Admin/Call Center via Pusher (non bloquant)
     triggerAdminNotification("new-appointment", {
@@ -175,7 +182,8 @@ export async function POST(req: Request) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "Données invalides.", details: err.issues }, { status: 400 })
     }
-    console.error("[appointments POST]", err)
-    return NextResponse.json({ error: "Erreur serveur." }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error("[appointments POST] DETAIL:", msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

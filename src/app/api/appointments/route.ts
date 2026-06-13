@@ -99,6 +99,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "patientId requis pour Call Center." }, { status: 400 })
     }
 
+    // Vérifier que le patient existe en base (protection contre les sessions orphelines)
+    const patientUser = await prisma.user.findUnique({
+      where:  { id: patientId },
+      select: { id: true, isActive: true },
+    })
+    if (!patientUser) {
+      return NextResponse.json({
+        error: "Session expirée ou compte introuvable. Déconnectez-vous et reconnectez-vous.",
+      }, { status: 401 })
+    }
+    if (!patientUser.isActive) {
+      return NextResponse.json({ error: "Compte suspendu. Contactez le support." }, { status: 403 })
+    }
+
     // Vérifier que le médecin est validé
     const doctor = await prisma.doctorProfile.findFirst({
       where: { userId: data.doctorId, isVerifiedByAdmin: true },
@@ -182,8 +196,7 @@ export async function POST(req: Request) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "Données invalides.", details: err.issues }, { status: 400 })
     }
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error("[appointments POST] DETAIL:", msg)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error("[appointments POST]", err instanceof Error ? err.message : String(err))
+    return NextResponse.json({ error: "Erreur serveur." }, { status: 500 })
   }
 }

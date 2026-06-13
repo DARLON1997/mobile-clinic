@@ -136,10 +136,15 @@ export default function CallCenterChatsPage() {
         body: JSON.stringify({ content: text }),
       })
       let json: { success?: boolean; data?: ChatMessage; error?: string } = {}
-      try { json = await res.json() } catch { json = {} }
+      let parseError = ""
+      try { json = await res.json() } catch (e) { parseError = String(e); json = {} }
+
       if (!res.ok) {
         setSendError(`HTTP ${res.status} — ${json.error ?? JSON.stringify(json)}`)
+      } else if (!json.data) {
+        setSendError(`HTTP ${res.status} OK — pas de data (parseError: ${parseError || "none"}) — body: ${JSON.stringify(json).slice(0, 120)}`)
       }
+
       setMessages(prev => prev.map(m =>
         m.id === tempId
           ? res.ok && json.data

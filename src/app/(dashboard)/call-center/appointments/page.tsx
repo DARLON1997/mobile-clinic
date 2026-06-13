@@ -327,7 +327,7 @@ export default function CCAppointmentsPage() {
                           {patientResults.map((p) => (
                             <button key={p.id} onClick={() => setSelectedPatient(p)}
                               className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-all ${
-                                selectedPatient?.id === p.id ? "border-blue-600 bg-blue-50" : "border-gray-200 hover:bg-gray-50"
+                                selectedPatient?.id === p.id ? "border-blue-600 bg-blue-50 light-surface" : "border-gray-200 hover:bg-gray-50"
                               }`}>
                               <p className="font-medium text-gray-900">
                                 {p.patientProfile ? `${p.patientProfile.firstName} ${p.patientProfile.lastName}` : p.email}
@@ -360,7 +360,7 @@ export default function CCAppointmentsPage() {
                         {doctors.map((d) => (
                           <button key={d.id} onClick={() => setSelectedDoctor(d)}
                             className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-all ${
-                              selectedDoctor?.id === d.id ? "border-blue-600 bg-blue-50" : "border-gray-200 hover:bg-gray-50"
+                              selectedDoctor?.id === d.id ? "border-blue-600 bg-blue-50 light-surface" : "border-gray-200 hover:bg-gray-50"
                             }`}>
                             <p className="font-medium text-gray-900">
                               Dr {d.doctorProfile?.firstName} {d.doctorProfile?.lastName}

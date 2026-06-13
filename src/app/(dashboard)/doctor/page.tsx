@@ -100,7 +100,7 @@ export default async function DoctorDashboard() {
 
       {/* Prochain RDV */}
       {nextAppt && (
-        <Card className="mb-6 border-2 border-blue-100 bg-blue-50/30">
+        <Card className="mb-6 border-2 border-blue-100 bg-blue-50/30 light-surface">
           <CardContent className="flex items-center justify-between gap-4 p-5">
             <div>
               <p className="text-xs font-semibold uppercase text-blue-600 tracking-wide">Prochain rendez-vous</p>

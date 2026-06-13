@@ -103,7 +103,7 @@ export default function AgentPage() {
                 <div key={m.id}
                   className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                   {/* En-tête card */}
-                  <div className={`flex items-center justify-between px-4 py-2 ${
+                  <div className={`flex items-center justify-between px-4 py-2 light-surface ${
                     m.type === "CARE" ? "bg-blue-50" : "bg-purple-50"
                   }`}>
                     <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${

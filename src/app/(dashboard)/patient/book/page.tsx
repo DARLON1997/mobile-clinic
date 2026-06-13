@@ -190,7 +190,7 @@ export default function BookPage() {
                 onClick={() => { setType(value); if (value === "VIDEO") loadDoctors() }}
                 className={cn(
                   "w-full rounded-xl border-2 p-4 text-left transition-all",
-                  type === value ? "border-blue-600 bg-blue-50" : "border-gray-200 hover:border-blue-200"
+                  type === value ? "border-blue-600 bg-blue-50 light-surface" : "border-gray-200 hover:border-blue-200"
                 )}>
                 <div className="flex items-center gap-3">
                   <div className={cn("rounded-lg p-2", type === value ? "bg-blue-100" : "bg-gray-100")}>
@@ -230,7 +230,7 @@ export default function BookPage() {
                     <button key={doc.id} onClick={() => { setSelectedDoctor(doc); generateSlots(doc.id) }}
                       className={cn(
                         "w-full rounded-xl border-2 p-3 text-left transition-all",
-                        selectedDoctor?.id === doc.id ? "border-blue-600 bg-blue-50" : "border-gray-200 hover:border-blue-200"
+                        selectedDoctor?.id === doc.id ? "border-blue-600 bg-blue-50 light-surface" : "border-gray-200 hover:border-blue-200"
                       )}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">

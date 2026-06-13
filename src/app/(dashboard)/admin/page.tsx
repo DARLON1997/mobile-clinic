@@ -103,7 +103,7 @@ export default async function AdminDashboard() {
                     ? `Dr ${appt.doctor.doctorProfile.firstName} ${appt.doctor.doctorProfile.lastName}`
                     : "—"
                   return (
-                    <div key={appt.id} className="flex items-center justify-between gap-2 rounded-lg bg-orange-50 px-3 py-2 text-sm">
+                    <div key={appt.id} className="flex items-center justify-between gap-2 rounded-lg bg-orange-50 px-3 py-2 text-sm light-surface">
                       <div className="min-w-0">
                         <p className="font-medium text-gray-900 truncate">{patient}</p>
                         <p className="text-xs text-gray-500 truncate">{doctor} · {formatDateFR(appt.scheduledAt)}</p>

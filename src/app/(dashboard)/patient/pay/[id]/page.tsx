@@ -134,7 +134,7 @@ export default function PayPage() {
               className={cn(
                 "w-full rounded-xl border-2 p-3.5 text-left flex items-center gap-3 transition-all",
                 payMethod === value
-                  ? "border-blue-600 bg-blue-50"
+                  ? "border-blue-600 bg-blue-50 light-surface"
                   : "border-gray-200 bg-white hover:border-blue-200"
               )}
             >

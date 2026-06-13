@@ -172,7 +172,7 @@ export default async function CallCenterDashboard() {
               )
               return (
                 <div key={i}
-                  className={`min-h-[80px] rounded-lg p-2 text-xs ${isToday ? "bg-blue-50 ring-1 ring-blue-200" : "bg-gray-50"}`}>
+                  className={`min-h-[80px] rounded-lg p-2 text-xs ${isToday ? "bg-blue-50 ring-1 ring-blue-200 light-surface" : "bg-gray-50"}`}>
                   <p className={`mb-1 font-semibold ${isToday ? "text-blue-600" : "text-gray-500"}`}>
                     {WEEKDAYS[i]} {day.getDate()}
                   </p>

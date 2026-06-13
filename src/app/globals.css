@@ -286,6 +286,26 @@ body {
 /* Fond global du layout agent (mobile) */
 .mc-agent-bg { background-color: var(--mc-bg-primary); }
 
+/* ══════════════════════════════════════════════════════
+   SURFACE CLAIRE — cartes blanches/bleues dans dashboard
+   Ajouter .light-surface sur tout conteneur à fond clair
+   (bg-white, bg-blue-50, gradients bleus/blancs, etc.)
+   pour annuler les overrides texte du thème sombre.
+   ══════════════════════════════════════════════════════ */
+.mc-dashboard .light-surface .text-gray-900 { color: #111827 !important; }
+.mc-dashboard .light-surface .text-gray-800 { color: #1f2937 !important; }
+.mc-dashboard .light-surface .text-gray-700 { color: #374151 !important; }
+.mc-dashboard .light-surface .text-gray-600 { color: #4b5563 !important; }
+.mc-dashboard .light-surface .text-gray-500 { color: #6b7280 !important; }
+.mc-dashboard .light-surface .text-gray-400 { color: #9ca3af !important; }
+.mc-dashboard .light-surface .text-gray-300 { color: #d1d5db !important; }
+.mc-dashboard .light-surface .bg-white      { background-color: #ffffff !important; }
+.mc-dashboard .light-surface .bg-gray-50    { background-color: #f9fafb !important; }
+.mc-dashboard .light-surface .bg-gray-100   { background-color: #f3f4f6 !important; }
+.mc-dashboard .light-surface .bg-blue-50    { background-color: #eff6ff !important; }
+.mc-dashboard .light-surface .border-gray-200 { border-color: #e5e7eb !important; }
+.mc-dashboard .light-surface .border-gray-100 { border-color: #f3f4f6 !important; }
+
 /* ── Effet verre (header landing) ── */
 .glass-dark {
   background: rgba(10, 10, 10, 0.88);

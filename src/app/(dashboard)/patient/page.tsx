@@ -68,7 +68,7 @@ export default async function PatientDashboard() {
 
       {/* Prochain RDV */}
       {nextAppt ? (
-        <Card className="mb-6 border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white">
+        <Card className="mb-6 border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white light-surface">
           <CardContent className="p-5">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-600">Prochain rendez-vous</p>
             <div className="flex items-start justify-between gap-3">

@@ -4,6 +4,7 @@ import Link      from "next/link"
 import Image     from "next/image"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
+import { signOut } from "next-auth/react"
 import type { UserRole } from "@/types"
 import { cn } from "@/lib/utils"
 import {
@@ -144,13 +145,12 @@ export function Sidebar({ role, userName }: SidebarProps) {
             </p>
           </div>
         </div>
-        <form action="/api/auth/signout" method="post">
-          <button type="submit"
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[13px] text-[#666666] transition-colors hover:bg-[rgba(232,84,84,0.08)] hover:text-[#E85454]">
-            <LogOut className="h-4 w-4" />
-            Déconnexion
-          </button>
-        </form>
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[13px] text-[#666666] transition-colors hover:bg-[rgba(232,84,84,0.08)] hover:text-[#E85454]">
+          <LogOut className="h-4 w-4" />
+          Déconnexion
+        </button>
       </div>
     </>
   )

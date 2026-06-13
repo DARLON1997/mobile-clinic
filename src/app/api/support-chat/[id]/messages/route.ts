@@ -80,16 +80,38 @@ export async function POST(req: Request, { params }: Params) {
     console.error("[messages POST] 404 — chat introuvable", id)
     return NextResponse.json({ error: "Conversation non trouvée" }, { status: 404 })
   }
-  if (!chat.isOpen) {
-    console.error("[messages POST] 409 — chat fermé", id)
-    return NextResponse.json({ error: "Cette conversation est fermée." }, { status: 409 })
-  }
 
   const isPatient = session.user.role === "PATIENT" && chat.patientId === session.user.id
   const isStaff   = ["CALL_CENTER_AGENT", "SUPER_ADMIN"].includes(session.user.role)
+
+  console.log("[messages POST] session ok →", {
+    userId: session.user.id,
+    role:   session.user.role,
+    chatId: id,
+    isOpen: chat.isOpen,
+    isPatient,
+    isStaff,
+  })
+
   if (!isPatient && !isStaff) {
     console.error("[messages POST] 403 — role:", session.user.role, "userId:", session.user.id)
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 })
+  }
+
+  // Chat fermé : le staff peut rouvrir en envoyant un message ; le patient ne peut pas
+  if (!chat.isOpen) {
+    if (isStaff) {
+      await prisma.supportChat.update({ where: { id }, data: { isOpen: true } })
+      console.log("[messages POST] chat rouvert par staff:", id)
+    } else {
+      return NextResponse.json({ error: "Cette conversation est clôturée. Ouvrez-en une nouvelle." }, { status: 409 })
+    }
+  }
+
+  // Auto-assigner le Call Center s'il n'y a pas encore d'agent
+  if (session.user.role === "CALL_CENTER_AGENT" && !chat.callCenterId) {
+    prisma.supportChat.update({ where: { id }, data: { callCenterId: session.user.id } })
+      .catch(err => console.error("[messages POST] auto-assign failed:", err))
   }
 
   try {

@@ -85,6 +85,8 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Exclure /api/* — les routes API gèrent leur propre auth (401 JSON, pas redirect HTML)
+    // Exclure assets statiques Next.js et fichiers médias
+    "/((?!api|_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 }

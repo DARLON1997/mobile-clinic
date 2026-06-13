@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
+import { useSession } from "next-auth/react"
 import { MessageCircle, Send, UserCheck, X } from "lucide-react"
 import { cn, getInitials, formatRelativeTime, isSameDay, formatDateLabel } from "@/lib/utils"
 import { getPusherClient } from "@/lib/pusher-client"
@@ -35,6 +36,7 @@ const QUICK = [
 ]
 
 export default function CallCenterChatsPage() {
+  const { data: session, status } = useSession()
   const [chats,    setChats]    = useState<Chat[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -118,11 +120,19 @@ export default function CallCenterChatsPage() {
 
   async function sendMessage(content: string) {
     if (!activeId || !content.trim()) return
+
+    // Vérifier que la session est toujours active
+    if (status !== "authenticated" || !session?.user) {
+      window.location.href = "/login"
+      return
+    }
+
     const text   = content.trim()
     const tempId = `temp-${Date.now()}`
     const optimistic: ChatMessage = {
       id: tempId, content: text,
-      senderId: "agent", senderRole: "CALL_CENTER_AGENT", senderName: "Agent Support",
+      senderId: session.user.id ?? "agent",
+      senderRole: "CALL_CENTER_AGENT", senderName: "Agent Support",
       createdAt: new Date().toISOString(), isRead: false, isPending: true,
     }
     setMessages(prev => [...prev, optimistic])
@@ -130,30 +140,47 @@ export default function CallCenterChatsPage() {
     setSendError(null)
     setTimeout(scrollToBottom, 50)
     setLoading(true)
-    try {
-      const res  = await fetch(`/api/support-chat/${activeId}/messages`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text }),
-      })
-      let json: { success?: boolean; data?: ChatMessage; error?: string } = {}
-      let parseError = ""
-      try { json = await res.json() } catch (e) { parseError = String(e); json = {} }
 
-      if (!res.ok) {
-        setSendError(`HTTP ${res.status} — ${json.error ?? JSON.stringify(json)}`)
-      } else if (!json.data) {
-        setSendError(`HTTP ${res.status} OK — pas de data (parseError: ${parseError || "none"}) — body: ${JSON.stringify(json).slice(0, 120)}`)
+    const controller = new AbortController()
+    const timeout    = setTimeout(() => controller.abort(), 15000)
+
+    try {
+      const res = await fetch(`/api/support-chat/${activeId}/messages`, {
+        method:      "POST",
+        headers:     { "Content-Type": "application/json" },
+        credentials: "include",
+        body:        JSON.stringify({ content: text }),
+        signal:      controller.signal,
+      })
+      clearTimeout(timeout)
+
+      // Si le serveur renvoie du HTML (redirect /login → session expirée)
+      const ct = res.headers.get("content-type") ?? ""
+      if (ct.includes("text/html")) {
+        setSendError("Session expirée. Reconnexion...")
+        setTimeout(() => { window.location.href = "/login" }, 1500)
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...m, isPending: false, isFailed: true } : m))
+        return
       }
 
-      setMessages(prev => prev.map(m =>
-        m.id === tempId
-          ? res.ok && json.data
-            ? { ...json.data, isPending: false }
-            : { ...m, isPending: false, isFailed: true }
-          : m
-      ))
+      let json: { success?: boolean; data?: ChatMessage; error?: string } = {}
+      try { json = await res.json() } catch { json = {} }
+
+      if (!res.ok) {
+        setSendError(`HTTP ${res.status} — ${json.error ?? "Erreur inconnue"}`)
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...m, isPending: false, isFailed: true } : m))
+      } else if (json.data) {
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...json.data!, isPending: false } : m))
+      } else {
+        setSendError(`Réponse inattendue du serveur (HTTP ${res.status})`)
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...m, isPending: false, isFailed: true } : m))
+      }
     } catch (err) {
-      setSendError(`Erreur réseau : ${err instanceof Error ? err.message : String(err)}`)
+      clearTimeout(timeout)
+      const msg = err instanceof Error ? err.message : String(err)
+      setSendError(err instanceof Error && err.name === "AbortError"
+        ? "Délai dépassé (15s). Vérifiez votre connexion."
+        : `Erreur réseau : ${msg}`)
       setMessages(prev => prev.map(m => m.id === tempId ? { ...m, isPending: false, isFailed: true } : m))
     } finally {
       setLoading(false)

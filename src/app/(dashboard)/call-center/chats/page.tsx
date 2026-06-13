@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { useSession } from "next-auth/react"
 import { MessageCircle, Send, UserCheck, X } from "lucide-react"
 import { cn, getInitials, formatRelativeTime, isSameDay, formatDateLabel } from "@/lib/utils"
 import { getPusherClient } from "@/lib/pusher-client"
@@ -36,7 +35,6 @@ const QUICK = [
 ]
 
 export default function CallCenterChatsPage() {
-  const { data: session, status } = useSession()
   const [chats,    setChats]    = useState<Chat[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -121,17 +119,11 @@ export default function CallCenterChatsPage() {
   async function sendMessage(content: string) {
     if (!activeId || !content.trim()) return
 
-    // Vérifier que la session est toujours active
-    if (status !== "authenticated" || !session?.user) {
-      window.location.href = "/login"
-      return
-    }
-
     const text   = content.trim()
     const tempId = `temp-${Date.now()}`
     const optimistic: ChatMessage = {
       id: tempId, content: text,
-      senderId: session.user.id ?? "agent",
+      senderId: "agent",
       senderRole: "CALL_CENTER_AGENT", senderName: "Agent Support",
       createdAt: new Date().toISOString(), isRead: false, isPending: true,
     }

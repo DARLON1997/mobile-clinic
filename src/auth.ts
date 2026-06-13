@@ -47,12 +47,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const parsed = loginSchema.safeParse(credentials)
         if (!parsed.success) return null
 
+        // Normaliser l'email avant toute comparaison (Postgres est case-sensitive)
+        const email = parsed.data.email.toLowerCase().trim()
+
         // RÈGLE R7 : vérifier la limite de tentatives de connexion
-        const limit = await checkLoginLimit(parsed.data.email).catch(() => ({ allowed: true }))
+        const limit = await checkLoginLimit(email).catch(() => ({ allowed: true }))
         if (!limit.allowed) return null
 
         const user = await prisma.user.findUnique({
-          where:  { email: parsed.data.email },
+          where:  { email },
           select: {
             id:           true,
             email:        true,
@@ -65,11 +68,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!user) return null
 
+        // Vérifier le compte avant bcrypt (évite le hash inutile + logique correcte)
+        if (!user.isActive) return null
+        if (!user.passwordHash) return null
+
         const isValid = await bcrypt.compare(parsed.data.password, user.passwordHash)
         if (!isValid) return null
-
-        // Compte suspendu → on retourne null mais sans comptabiliser en échec
-        if (!user.isActive) return null
 
         // RÈGLE R3 : AuditLog + lastLoginAt en arrière-plan
         Promise.all([

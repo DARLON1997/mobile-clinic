@@ -22,13 +22,31 @@ export default function LoginPage() {
     setError("")
     setLoading(true)
     try {
-      const result = await signIn("credentials", { email, password, redirect: false })
-      if (result?.error) { setError("Email ou mot de passe incorrect."); return }
-      const res     = await fetch("/api/auth/session")
-      const session = await res.json()
-      router.push(getDashboardUrl(session?.user?.role ?? "PATIENT"))
-    } catch {
-      setError("Une erreur est survenue. Réessayez.")
+      const normalizedEmail = email.toLowerCase().trim()
+      const result = await signIn("credentials", { email: normalizedEmail, password, redirect: false })
+
+      // Auth.js v5 peut retourner { error } OU lancer une exception
+      if (result?.error) {
+        setError("Email ou mot de passe incorrect.")
+        return
+      }
+
+      // Récupérer le rôle depuis la session fraîchement créée
+      const res = await fetch("/api/auth/session", { cache: "no-store" })
+      const sessionData = await res.json()
+      const role = sessionData?.user?.role ?? "PATIENT"
+
+      // window.location.href force un vrai rechargement — garantit que les
+      // cookies de session sont lus par le serveur sans cache client
+      window.location.href = getDashboardUrl(role)
+    } catch (e: unknown) {
+      // Auth.js v5 peut lancer AuthError sur credentials invalides
+      const msg = e instanceof Error ? e.message : ""
+      if (msg.toLowerCase().includes("credential") || msg.toLowerCase().includes("signin")) {
+        setError("Email ou mot de passe incorrect.")
+      } else {
+        setError("Une erreur est survenue. Réessayez.")
+      }
     } finally {
       setLoading(false)
     }

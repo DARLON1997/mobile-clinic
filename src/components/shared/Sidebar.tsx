@@ -1,16 +1,16 @@
 "use client"
 
 import Link      from "next/link"
-import Image     from "next/image"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { signOut } from "next-auth/react"
 import type { UserRole } from "@/types"
 import { cn } from "@/lib/utils"
+import { LogoMark } from "@/components/shared/LogoMark"
 import {
   LayoutDashboard, CalendarCheck, Users, ShieldCheck,
   DollarSign, ScrollText, Video, History, BookOpen,
-  Home, FileText, MapPin, LogOut, Menu, X, Heart,
+  Home, FileText, MapPin, LogOut, Menu, X,
   FlaskConical, Syringe, MessageCircle, Pill,
   ShoppingCart, Settings, TrendingUp, Store,
   CalendarDays, BookUser,
@@ -94,11 +94,9 @@ export function Sidebar({ role, userName }: SidebarProps) {
 
   const NavContent = () => (
     <>
-      {/* Logo */}
-      <div className="flex items-center gap-3 border-b border-[#2A2A2A] px-6 pb-6 mb-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#C8906A] to-[#E8B49A]">
-          <Heart className="h-4 w-4 text-[#0A0A0A]" fill="currentColor" />
-        </div>
+      {/* Logo — cercle pinceau compact */}
+      <div className="flex items-center gap-3 border-b border-[#2A2A2A] px-5 pb-5 mb-2">
+        <LogoMark size="xs" showText={false} />
         <div>
           <p className="font-cormorant text-base font-semibold italic text-white leading-none">Mobile Clinic</p>
           <p className="font-montserrat text-[10px] uppercase tracking-[0.12em] text-[#666666]">Télémédecine</p>

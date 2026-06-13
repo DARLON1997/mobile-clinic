@@ -4,9 +4,10 @@ import { useState } from "react"
 import Link         from "next/link"
 import { useRouter } from "next/navigation"
 import { signIn }   from "next-auth/react"
-import { Eye, EyeOff, Heart } from "lucide-react"
-import { Button }   from "@/components/ui/button"
-import { Input }    from "@/components/ui/input"
+import { Eye, EyeOff } from "lucide-react"
+import { Button }       from "@/components/ui/button"
+import { Input }        from "@/components/ui/input"
+import { LogoMark }     from "@/components/shared/LogoMark"
 import { getDashboardUrl } from "@/lib/utils"
 
 export default function LoginPage() {
@@ -59,17 +60,11 @@ export default function LoginPage() {
         style={{ background: "radial-gradient(circle, rgba(200,144,106,0.06) 0%, transparent 70%)", filter: "blur(60px)" }} />
 
       <div className="relative w-full max-w-[420px]">
-        {/* Logo */}
+        {/* Logo — cercle pinceau fidèle au logo officiel */}
         <div className="mb-8 text-center animate-fade-in-up">
-          <Link href="/" className="inline-flex flex-col items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#C8906A] to-[#E8B49A] shadow-[0_0_24px_rgba(200,144,106,0.4)]">
-              <Heart className="h-6 w-6 text-[#0A0A0A]" fill="currentColor" />
-            </div>
-            <span className="font-cormorant text-2xl font-semibold italic text-white">Mobile Clinic</span>
+          <Link href="/" className="inline-flex justify-center">
+            <LogoMark size="lg" showText showTagline />
           </Link>
-          <p className="font-slogan mt-2 text-[10px] text-[#C8906A]">
-            La santé plus proche de vous
-          </p>
         </div>
 
         {/* Formulaire */}

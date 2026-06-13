@@ -42,6 +42,7 @@ export default function CallCenterChatsPage() {
   const [filter,   setFilter]   = useState<"all" | "open" | "mine" | "closed">("open")
   const [loading,  setLoading]  = useState(false)
   const [unread,   setUnread]   = useState<Record<string, number>>({})
+  const [sendError, setSendError] = useState<string | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
 
   const activeChat = chats.find(c => c.id === activeId) ?? null
@@ -126,6 +127,7 @@ export default function CallCenterChatsPage() {
     }
     setMessages(prev => [...prev, optimistic])
     setNewMsg("")
+    setSendError(null)
     setTimeout(scrollToBottom, 50)
     setLoading(true)
     try {
@@ -133,11 +135,20 @@ export default function CallCenterChatsPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: text }),
       })
-      const json = await res.json()
+      let json: { success?: boolean; data?: ChatMessage; error?: string } = {}
+      try { json = await res.json() } catch { json = {} }
+      if (!res.ok) {
+        setSendError(`HTTP ${res.status} — ${json.error ?? JSON.stringify(json)}`)
+      }
       setMessages(prev => prev.map(m =>
-        m.id === tempId ? (res.ok ? { ...json.data, isPending: false } : { ...m, isPending: false, isFailed: true }) : m
+        m.id === tempId
+          ? res.ok && json.data
+            ? { ...json.data, isPending: false }
+            : { ...m, isPending: false, isFailed: true }
+          : m
       ))
-    } catch {
+    } catch (err) {
+      setSendError(`Erreur réseau : ${err instanceof Error ? err.message : String(err)}`)
       setMessages(prev => prev.map(m => m.id === tempId ? { ...m, isPending: false, isFailed: true } : m))
     } finally {
       setLoading(false)
@@ -286,6 +297,13 @@ export default function CallCenterChatsPage() {
             {renderMessages()}
             <div ref={endRef} />
           </div>
+
+          {/* Erreur d'envoi — debug temporaire */}
+          {sendError && (
+            <div className="border-t border-red-900/40 bg-red-950/60 px-4 py-2 text-xs font-mono text-red-300">
+              {sendError}
+            </div>
+          )}
 
           {/* Réponses rapides */}
           {activeChat.isOpen && (

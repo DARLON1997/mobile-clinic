@@ -69,31 +69,44 @@ export async function GET(_req: Request, { params }: Params) {
 
 export async function POST(req: Request, { params }: Params) {
   const session = await auth()
-  if (!session) return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
+  if (!session) {
+    console.error("[messages POST] 401 — pas de session")
+    return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
+  }
   const { id } = await params
 
   const chat = await prisma.supportChat.findUnique({ where: { id } })
-  if (!chat) return NextResponse.json({ error: "Conversation non trouvée" }, { status: 404 })
-  if (!chat.isOpen) return NextResponse.json({ error: "Cette conversation est fermée." }, { status: 409 })
+  if (!chat) {
+    console.error("[messages POST] 404 — chat introuvable", id)
+    return NextResponse.json({ error: "Conversation non trouvée" }, { status: 404 })
+  }
+  if (!chat.isOpen) {
+    console.error("[messages POST] 409 — chat fermé", id)
+    return NextResponse.json({ error: "Cette conversation est fermée." }, { status: 409 })
+  }
 
   const isPatient = session.user.role === "PATIENT" && chat.patientId === session.user.id
   const isStaff   = ["CALL_CENTER_AGENT", "SUPER_ADMIN"].includes(session.user.role)
-  if (!isPatient && !isStaff) return NextResponse.json({ error: "Non autorisé" }, { status: 403 })
+  if (!isPatient && !isStaff) {
+    console.error("[messages POST] 403 — role:", session.user.role, "userId:", session.user.id)
+    return NextResponse.json({ error: "Non autorisé" }, { status: 403 })
+  }
 
   try {
     const { content, fileUrl } = sendSchema.parse(await req.json())
 
-    const msg = await prisma.$transaction(async (tx) => {
-      const created = await tx.supportMessage.create({
-        data: { chatId: id, senderId: session.user.id, content, fileUrl },
-        include: { sender: { select: senderSelect } },
-      })
-      await tx.supportChat.update({ where: { id }, data: { lastMessageAt: new Date() } })
-      await tx.auditLog.create({
-        data: { userId: session.user.id, action: "SUPPORT_MESSAGE_SENT", targetId: id, targetType: "SupportChat" },
-      })
-      return created
+    // Opérations séquentielles sans $transaction pour compatibilité PgBouncer
+    const msg = await prisma.supportMessage.create({
+      data: { chatId: id, senderId: session.user.id, content, fileUrl },
+      include: { sender: { select: senderSelect } },
     })
+
+    await prisma.supportChat.update({ where: { id }, data: { lastMessageAt: new Date() } })
+
+    // Audit log non-bloquant — une erreur ici ne doit pas faire échouer le message
+    prisma.auditLog.create({
+      data: { userId: session.user.id, action: "SUPPORT_MESSAGE_SENT", targetId: id, targetType: "SupportChat" },
+    }).catch(err => console.error("[messages POST] auditLog failed:", err))
 
     const payload = {
       id:         msg.id,

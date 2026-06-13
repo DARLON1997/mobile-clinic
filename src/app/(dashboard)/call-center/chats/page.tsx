@@ -146,11 +146,13 @@ export default function CallCenterChatsPage() {
 
   async function takeOver() {
     if (!activeId) return
-    await fetch(`/api/support-chat/${activeId}`, {
+    const res = await fetch(`/api/support-chat/${activeId}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ callCenterId: "self" }),
+      body: JSON.stringify({ takeOver: true }),
     })
-    setChats(prev => prev.map(c => c.id === activeId ? { ...c, callCenterId: "self" } : c))
+    if (res.ok) {
+      setChats(prev => prev.map(c => c.id === activeId ? { ...c, callCenterId: "me" } : c))
+    }
   }
 
   async function closeChat() {

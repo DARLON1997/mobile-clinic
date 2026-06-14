@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server"
-import { prisma }       from "@/lib/prisma"
-import bcrypt           from "bcryptjs"
-import { z }            from "zod"
-import { sendSMS }      from "@/lib/africas-talking"
+import { NextResponse }  from "next/server"
+import { prisma }        from "@/lib/prisma"
+import bcrypt            from "bcryptjs"
+import { z }             from "zod"
+import { sendEmail, emailTemplates } from "@/lib/mailer"
 import { checkApiLimit, checkLoginLimit } from "@/lib/rate-limit"
 
 const schema = z.object({
@@ -14,10 +14,10 @@ function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
-function maskPhone(phone: string): string {
-  if (phone.length < 4) return phone
-  const suffix = phone.slice(-2)
-  return `+242 ●●●●●●● ${suffix}`
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@")
+  if (!local || !domain) return email
+  return `${local.slice(0, 3)}***@${domain}`
 }
 
 export async function POST(req: Request) {
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 
     const user = await prisma.user.findUnique({
       where:  { email },
-      select: { id: true, phone: true, passwordHash: true, isActive: true },
+      select: { id: true, email: true, passwordHash: true, isActive: true },
     })
 
     if (!user || !user.isActive || !user.passwordHash) {
@@ -59,12 +59,19 @@ export async function POST(req: Request) {
       data:  { otpCode: code, otpExpiry: expiresAt },
     })
 
-    await sendSMS(
-      user.phone,
-      `Mobile Clinic — Code de connexion : ${code}. Valable 5 min. Ne partagez jamais ce code.`
-    )
+    try {
+      console.log("[pre-login] SMTP_USER set:", !!process.env.SMTP_USER, "| SMTP_PASS set:", !!process.env.SMTP_PASS)
+      await sendEmail(
+        user.email,
+        "Code de connexion — Mobile Clinic",
+        emailTemplates.otp(code, "login")
+      )
+      console.log("[pre-login] email sent to", user.email)
+    } catch (mailErr) {
+      console.error("[pre-login] sendEmail FAILED:", mailErr)
+    }
 
-    return NextResponse.json({ success: true, maskedPhone: maskPhone(user.phone) })
+    return NextResponse.json({ success: true, maskedEmail: maskEmail(user.email) })
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "Données invalides." }, { status: 400 })

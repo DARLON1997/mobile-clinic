@@ -98,6 +98,20 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 })
   }
 
+  // Guard session fantôme : le JWT peut être valide mais l'utilisateur absent de la DB prod
+  // (même fix que commit 674d956 pour les appointments)
+  const dbUser = await prisma.user.findUnique({
+    where:  { id: session.user.id },
+    select: { id: true, isActive: true },
+  })
+  if (!dbUser) {
+    console.error("[messages POST] session fantôme — userId introuvable en DB:", session.user.id)
+    return NextResponse.json({ error: "Compte introuvable — veuillez vous reconnecter" }, { status: 401 })
+  }
+  if (!dbUser.isActive) {
+    return NextResponse.json({ error: "Compte suspendu" }, { status: 403 })
+  }
+
   // Chat fermé : le staff peut rouvrir en envoyant un message ; le patient ne peut pas
   if (!chat.isOpen) {
     if (isStaff) {
@@ -166,7 +180,8 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ success: true, data: payload }, { status: 201 })
   } catch (err) {
     if (err instanceof z.ZodError) return NextResponse.json({ error: "Données invalides" }, { status: 400 })
+    const detail = err instanceof Error ? err.message : String(err)
     console.error("[messages POST]", err)
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })
+    return NextResponse.json({ error: `Erreur serveur : ${detail}` }, { status: 500 })
   }
 }

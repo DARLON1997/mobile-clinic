@@ -83,7 +83,7 @@ function btn(text: string, href: string): string {
   return `<a href="${href}" style="display:inline-block;background:#1e5fa8;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px;margin-top:16px;">${text}</a>`
 }
 
-// ─── Templates ────────────────────────────────────────────────────────────────
+// ─── Templates (welcome, appointmentConfirmed, appointmentReminder, prescriptionReady, paymentReceipt, otp) ───
 
 export const emailTemplates = {
   welcome: (patientName: string) =>
@@ -159,4 +159,24 @@ export const emailTemplates = {
       <p style="color:#475569;">Conservez cette référence pour tout litige.</p>
       ${btn("Voir mes rendez-vous", `${process.env.NEXTAUTH_URL}/patient/appointments`)}
     `),
+  otp: (code: string, purpose: "login" | "reset") =>
+    emailLayout(
+      purpose === "login" ? "Code de connexion — Mobile Clinic" : "Réinitialisation de mot de passe",
+      `
+      <h2 style="color:#1e5fa8;margin-top:0;">
+        ${purpose === "login" ? "🔐 Code de connexion" : "🔑 Réinitialisation de mot de passe"}
+      </h2>
+      <p style="color:#475569;line-height:1.6;">
+        Voici votre code à usage unique. Il est valable <strong>5 minutes</strong>.
+      </p>
+      <div style="text-align:center;margin:24px 0;">
+        <span style="display:inline-block;background:#f1f5f9;border:2px dashed #C8906A;border-radius:12px;padding:16px 40px;font-size:36px;font-weight:700;letter-spacing:12px;color:#1e293b;">
+          ${code}
+        </span>
+      </div>
+      <p style="color:#94a3b8;font-size:13px;margin-top:8px;">
+        Ne partagez jamais ce code. Mobile Clinic ne vous le demandera jamais par téléphone.
+      </p>
+    `
+    ),
 } as const

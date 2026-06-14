@@ -56,6 +56,13 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "Réservé au Call Center" }, { status: 403 })
   }
 
+  const dbUser = await prisma.user.findUnique({
+    where:  { id: session.user.id },
+    select: { id: true, isActive: true },
+  })
+  if (!dbUser) return NextResponse.json({ error: "Compte introuvable — veuillez vous reconnecter" }, { status: 401 })
+  if (!dbUser.isActive) return NextResponse.json({ error: "Compte suspendu" }, { status: 403 })
+
   try {
     const { appointmentId, notes } = submitSchema.parse(await req.json())
 

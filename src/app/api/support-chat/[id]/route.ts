@@ -56,7 +56,7 @@ export async function PUT(req: Request, { params }: Params) {
         where: { id },
         data:  { callCenterId: session.user.id },
       })
-      pusherServer.trigger(`patient-${chat.patientId}`, "agent-assigned", {
+      pusherServer.trigger(`private-patient-${chat.patientId}`, "agent-assigned", {
         chatId: id, callCenterId: session.user.id,
       }).catch(console.error)
       return NextResponse.json({ success: true, data: updated })
@@ -66,7 +66,7 @@ export async function PUT(req: Request, { params }: Params) {
     if ("callCenterId" in body && isStaff) {
       const { callCenterId } = assignSchema.parse(body)
       const updated = await prisma.supportChat.update({ where: { id }, data: { callCenterId } })
-      pusherServer.trigger(`patient-${chat.patientId}`, "agent-assigned", {
+      pusherServer.trigger(`private-patient-${chat.patientId}`, "agent-assigned", {
         chatId: id, callCenterId,
       }).catch(console.error)
       return NextResponse.json({ success: true, data: updated })

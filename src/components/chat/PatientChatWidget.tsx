@@ -55,7 +55,7 @@ export function PatientChatWidget({ userId }: Props) {
     const pusher = getPusherClient()
     if (!pusher) return
 
-    const channel = pusher.subscribe(`chat-${chat.id}`)
+    const channel = pusher.subscribe(`private-chat-${chat.id}`)
     channel.bind("new-message", (msg: ChatMessage) => {
       if (msg.senderRole === "PATIENT") return // message optimiste déjà affiché
       setMessages(prev => {
@@ -71,18 +71,18 @@ export function PatientChatWidget({ userId }: Props) {
       }
     })
 
-    return () => { pusher.unsubscribe(`chat-${chat.id}`) }
+    return () => { pusher.unsubscribe(`private-chat-${chat.id}`) }
   }, [chat?.id, open, scrollToBottom])
 
   // Pusher — notifications arrière-plan (widget fermé)
   useEffect(() => {
     const pusher = getPusherClient()
     if (!pusher) return
-    const channel = pusher.subscribe(`patient-${userId}`)
+    const channel = pusher.subscribe(`private-patient-${userId}`)
     channel.bind("new-message", () => {
       if (!open) setUnread(n => n + 1)
     })
-    return () => { pusher.unsubscribe(`patient-${userId}`) }
+    return () => { pusher.unsubscribe(`private-patient-${userId}`) }
   }, [userId, open])
 
   async function createChat() {

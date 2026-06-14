@@ -11,6 +11,7 @@ export function getPusherClient(): PusherJS | null {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER ?? "eu",
       enabledTransports: ["ws", "wss"],
       disableStats: true,
+      channelAuthorization: { endpoint: "/api/pusher/auth", transport: "ajax" },
     })
   }
   return _client

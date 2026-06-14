@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs"
 import { z } from "zod"
 import { sendEmail, emailTemplates } from "@/lib/mailer"
 import { sendSMS } from "@/lib/africas-talking"
+import { checkApiLimit } from "@/lib/rate-limit"
 
 const schema = z.object({
   firstName:        z.string().min(2),
@@ -27,6 +28,12 @@ const schema = z.object({
 })
 
 export async function POST(req: Request) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown"
+  const allowed = await checkApiLimit(ip)
+  if (!allowed) {
+    return NextResponse.json({ error: "Trop de requêtes. Réessayez dans une minute." }, { status: 429 })
+  }
+
   try {
     const data = schema.parse(await req.json())
 

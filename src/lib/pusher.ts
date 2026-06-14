@@ -23,7 +23,7 @@ export const pusherServer = new Pusher({
  *   - "location-update" : { lat: number, lng: number }
  */
 export function missionChannel(missionId: string) {
-  return `mission-${missionId}`
+  return `private-mission-${missionId}`
 }
 
 /**
@@ -33,7 +33,7 @@ export function missionChannel(missionId: string) {
  *   - "new-approval-request" : { appointmentId, patientName, doctorName }
  *   - "payment-received"     : { appointmentId, amount, txRef }
  */
-export const ADMIN_CHANNEL = "admin-notifications"
+export const ADMIN_CHANNEL = "private-admin-notifications"
 
 // ─── Helpers serveur ──────────────────────────────────────────────────────────
 
@@ -65,14 +65,14 @@ export async function triggerAdminNotification(
  *   - "payment-received"  : { commandeId, montantTotal }
  */
 export function pharmacieChannel(pharmacieId: string) {
-  return `pharmacie-${pharmacieId}`
+  return `private-pharmacie-${pharmacieId}`
 }
 
 /**
  * Canal call-center-inbox (partagé).
  * Ajoute l'event new-ordonnance-request.
  */
-export const CALL_CENTER_INBOX_CHANNEL = "call-center-inbox"
+export const CALL_CENTER_INBOX_CHANNEL = "private-call-center-inbox"
 
 /**
  * Canal patient (notifications pharmacie).
@@ -83,7 +83,7 @@ export const CALL_CENTER_INBOX_CHANNEL = "call-center-inbox"
  *   - "medicament-found"     : { ordonnanceId }
  */
 export function patientChannel(patientId: string) {
-  return `patient-${patientId}`
+  return `private-patient-${patientId}`
 }
 
 export async function triggerPharmacieNotification(

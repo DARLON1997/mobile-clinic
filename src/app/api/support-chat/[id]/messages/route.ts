@@ -156,11 +156,11 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     // Tous les participants du chat reçoivent le message en temps réel
-    pusherServer.trigger(`chat-${id}`, "new-message", payload).catch(console.error)
+    pusherServer.trigger(`private-chat-${id}`, "new-message", payload).catch(console.error)
 
     // Notification boîte de réception Call Center (depuis patient)
     if (isPatient) {
-      pusherServer.trigger("call-center-inbox", "new-message", {
+      pusherServer.trigger("private-call-center-inbox", "new-message", {
         chatId:   id,
         preview:  content.slice(0, 60),
         senderName: payload.senderName,
@@ -170,7 +170,7 @@ export async function POST(req: Request, { params }: Params) {
 
     // Notification patient (depuis agent)
     if (!isPatient) {
-      pusherServer.trigger(`patient-${chat.patientId}`, "new-message", {
+      pusherServer.trigger(`private-patient-${chat.patientId}`, "new-message", {
         chatId:  id,
         preview: content.slice(0, 60),
         timestamp: msg.createdAt.toISOString(),
@@ -180,8 +180,7 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ success: true, data: payload }, { status: 201 })
   } catch (err) {
     if (err instanceof z.ZodError) return NextResponse.json({ error: "Données invalides" }, { status: 400 })
-    const detail = err instanceof Error ? err.message : String(err)
     console.error("[messages POST]", err)
-    return NextResponse.json({ error: `Erreur serveur : ${detail}` }, { status: 500 })
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })
   }
 }

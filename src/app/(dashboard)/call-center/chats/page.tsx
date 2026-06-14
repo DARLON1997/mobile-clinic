@@ -75,7 +75,7 @@ export default function CallCenterChatsPage() {
     if (!activeId) return
     const pusher = getPusherClient()
     if (!pusher) return
-    const ch = pusher.subscribe(`chat-${activeId}`)
+    const ch = pusher.subscribe(`private-chat-${activeId}`)
     ch.bind("new-message", (msg: ChatMessage) => {
       setMessages(prev => {
         if (prev.find(m => m.id === msg.id)) return prev
@@ -83,14 +83,14 @@ export default function CallCenterChatsPage() {
       })
       setTimeout(scrollToBottom, 50)
     })
-    return () => { pusher.unsubscribe(`chat-${activeId}`) }
+    return () => { pusher.unsubscribe(`private-chat-${activeId}`) }
   }, [activeId, scrollToBottom])
 
   // Pusher — boîte de réception globale
   useEffect(() => {
     const pusher = getPusherClient()
     if (!pusher) return
-    const ch = pusher.subscribe("call-center-inbox")
+    const ch = pusher.subscribe("private-call-center-inbox")
 
     ch.bind("new-message", (data: { chatId: string; preview: string; timestamp: string }) => {
       setChats(prev => {
@@ -113,7 +113,7 @@ export default function CallCenterChatsPage() {
       playNotificationSound()
     })
 
-    return () => { pusher.unsubscribe("call-center-inbox") }
+    return () => { pusher.unsubscribe("private-call-center-inbox") }
   }, [activeId])
 
   async function sendMessage(content: string) {

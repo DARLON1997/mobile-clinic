@@ -38,6 +38,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Réservé aux patients" }, { status: 403 })
   }
 
+  const dbUser = await prisma.user.findUnique({
+    where:  { id: session.user.id },
+    select: { id: true, isActive: true },
+  })
+  if (!dbUser) return NextResponse.json({ error: "Compte introuvable — veuillez vous reconnecter" }, { status: 401 })
+  if (!dbUser.isActive) return NextResponse.json({ error: "Compte suspendu" }, { status: 403 })
+
   try {
     const { subject } = createSchema.parse(await req.json())
 
@@ -59,7 +66,7 @@ export async function POST(req: Request) {
       return sc
     })
 
-    pusherServer.trigger("call-center-inbox", "new-conversation", {
+    pusherServer.trigger("private-call-center-inbox", "new-conversation", {
       chatId:    chat.id,
       subject,
       patientId: session.user.id,

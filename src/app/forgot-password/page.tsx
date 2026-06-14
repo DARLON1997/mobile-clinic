@@ -12,7 +12,7 @@ type Step = "email" | "otp" | "password" | "done"
 export default function ForgotPasswordPage() {
   const [step, setStep]             = useState<Step>("email")
   const [email, setEmail]           = useState("")
-  const [maskedPhone, setMaskedPhone] = useState("")
+  const [maskedEmail, setMaskedEmail] = useState("")
   const [otp, setOtp]               = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -41,7 +41,7 @@ export default function ForgotPasswordPage() {
         setError(data.error ?? "Erreur serveur.")
         return
       }
-      setMaskedPhone(data.maskedPhone)
+      setMaskedEmail(data.maskedEmail)
       setStep("otp")
       setResendTimer(60)
     } catch {
@@ -121,7 +121,7 @@ export default function ForgotPasswordPage() {
             <>
               <h1 className="font-heading mb-1 text-xl text-white">Mot de passe oublié</h1>
               <p className="mb-7 text-sm text-[#666666]">
-                Entre ton adresse email — nous enverrons un code sur ton téléphone enregistré.
+                Entre ton adresse email — nous t'enverrons un code de vérification par email.
               </p>
 
               {error && (
@@ -156,8 +156,8 @@ export default function ForgotPasswordPage() {
                 </div>
               </div>
               <h1 className="font-heading mb-1 text-center text-xl text-white">Vérification</h1>
-              <p className="mb-1 text-center text-sm text-[#666666]">Code envoyé par SMS au</p>
-              <p className="mb-7 text-center text-sm font-medium text-[#C8906A]">{maskedPhone}</p>
+              <p className="mb-1 text-center text-sm text-[#666666]">Code envoyé par email à</p>
+              <p className="mb-7 text-center text-sm font-medium text-[#C8906A]">{maskedEmail}</p>
 
               {error && (
                 <div className="mb-5 rounded-lg border border-[rgba(232,84,84,0.2)] bg-[rgba(232,84,84,0.08)] px-4 py-3 text-sm text-[#E85454]">

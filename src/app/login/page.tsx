@@ -11,7 +11,7 @@ import { getDashboardUrl } from "@/lib/utils"
 
 export default function LoginPage() {
   const [step, setStep]       = useState<"credentials" | "otp">("credentials")
-  const [maskedPhone, setMaskedPhone] = useState("")
+  const [maskedEmail, setMaskedEmail] = useState("")
 
   const [email,    setEmail]    = useState("")
   const [password, setPassword] = useState("")
@@ -45,7 +45,7 @@ export default function LoginPage() {
         setError(data.error ?? "Email ou mot de passe incorrect.")
         return
       }
-      setMaskedPhone(data.maskedPhone)
+      setMaskedEmail(data.maskedEmail)
       setStep("otp")
       setResendTimer(60)
     } catch {
@@ -185,8 +185,8 @@ export default function LoginPage() {
               </div>
 
               <h1 className="font-heading mb-1 text-center text-xl text-white">Vérification</h1>
-              <p className="mb-1 text-center text-sm text-[#666666]">Code envoyé par SMS au</p>
-              <p className="mb-7 text-center text-sm font-medium text-[#C8906A]">{maskedPhone}</p>
+              <p className="mb-1 text-center text-sm text-[#666666]">Code envoyé par email à</p>
+              <p className="mb-7 text-center text-sm font-medium text-[#C8906A]">{maskedEmail}</p>
 
               {error && (
                 <div className="mb-5 rounded-lg border border-[rgba(232,84,84,0.2)] bg-[rgba(232,84,84,0.08)] px-4 py-3 text-sm text-[#E85454]">

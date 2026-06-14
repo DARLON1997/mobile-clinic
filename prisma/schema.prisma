@@ -81,6 +81,8 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   lastLoginAt  DateTime?
+  otpCode      String?
+  otpExpiry    DateTime?
 
   // Profils (un seul actif selon le rôle)
   patientProfile PatientProfile?

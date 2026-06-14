@@ -1,15 +1,14 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
-import bcrypt from "bcryptjs"
 import { z } from "zod"
 import type { Role } from "@prisma/client"
 import { checkLoginLimit } from "@/lib/rate-limit"
 import { authConfig } from "./auth.config"
 
-const loginSchema = z.object({
-  email:    z.string().email(),
-  password: z.string().min(6),
+const otpSchema = z.object({
+  email: z.string().email(),
+  otp:   z.string().length(6),
 })
 
 async function resolveDisplayName(userId: string, role: Role): Promise<string | null> {
@@ -39,56 +38,53 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       name: "credentials",
       credentials: {
-        email:    { label: "Email",        type: "email" },
-        password: { label: "Mot de passe", type: "password" },
+        email: { label: "Email",    type: "email" },
+        otp:   { label: "Code OTP", type: "text"  },
       },
 
       async authorize(credentials) {
-        const parsed = loginSchema.safeParse(credentials)
+        const parsed = otpSchema.safeParse(credentials)
         if (!parsed.success) return null
 
-        // Normaliser l'email avant toute comparaison (Postgres est case-sensitive)
         const email = parsed.data.email.toLowerCase().trim()
+        const otp   = parsed.data.otp.trim()
 
-        // RÈGLE R7 : vérifier la limite de tentatives de connexion
+        // RÈGLE R7 : limiter les tentatives de vérification OTP
         const limit = await checkLoginLimit(email).catch(() => ({ allowed: true }))
         if (!limit.allowed) return null
 
         const user = await prisma.user.findUnique({
           where:  { email },
           select: {
-            id:           true,
-            email:        true,
-            phone:        true,
-            passwordHash: true,
-            role:         true,
-            isActive:     true,
+            id:        true,
+            email:     true,
+            phone:     true,
+            role:      true,
+            isActive:  true,
+            otpCode:   true,
+            otpExpiry: true,
           },
         })
 
-        if (!user) return null
+        if (!user || !user.isActive) return null
+        if (!user.otpCode || !user.otpExpiry) return null
+        if (new Date() > user.otpExpiry) return null
+        if (user.otpCode !== otp) return null
 
-        // Vérifier le compte avant bcrypt (évite le hash inutile + logique correcte)
-        if (!user.isActive) return null
-        if (!user.passwordHash) return null
+        // OTP valide — nettoyer + lastLoginAt en une seule écriture
+        await prisma.user.update({
+          where: { id: user.id },
+          data:  { otpCode: null, otpExpiry: null, lastLoginAt: new Date() },
+        })
 
-        const isValid = await bcrypt.compare(parsed.data.password, user.passwordHash)
-        if (!isValid) return null
-
-        // RÈGLE R3 : AuditLog + lastLoginAt en arrière-plan
-        Promise.all([
-          prisma.auditLog.create({
-            data: {
-              userId:  user.id,
-              action:  "USER_LOGIN",
-              details: { email: user.email, role: user.role },
-            },
-          }),
-          prisma.user.update({
-            where: { id: user.id },
-            data:  { lastLoginAt: new Date() },
-          }),
-        ]).catch(() => null)
+        // RÈGLE R3 : AuditLog en arrière-plan
+        prisma.auditLog.create({
+          data: {
+            userId:  user.id,
+            action:  "USER_LOGIN",
+            details: { email: user.email, role: user.role, method: "otp" },
+          },
+        }).catch(() => null)
 
         const name = await resolveDisplayName(user.id, user.role)
 

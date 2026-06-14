@@ -59,17 +59,11 @@ export async function POST(req: Request) {
       data:  { otpCode: code, otpExpiry: expiresAt },
     })
 
-    try {
-      console.log("[pre-login] SMTP_USER set:", !!process.env.SMTP_USER, "| SMTP_PASS set:", !!process.env.SMTP_PASS)
-      await sendEmail(
-        user.email,
-        "Code de connexion — Mobile Clinic",
-        emailTemplates.otp(code, "login")
-      )
-      console.log("[pre-login] email sent to", user.email)
-    } catch (mailErr) {
-      console.error("[pre-login] sendEmail FAILED:", mailErr)
-    }
+    await sendEmail(
+      user.email,
+      "Code de connexion — Mobile Clinic",
+      emailTemplates.otp(code, "login")
+    )
 
     return NextResponse.json({ success: true, maskedEmail: maskEmail(user.email) })
   } catch (err) {

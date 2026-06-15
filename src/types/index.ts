@@ -24,6 +24,16 @@ export type AppointmentStatus =
   | "CANCELLED"
   | "NO_SHOW"
 
+export type PresentielStatus =
+  | "EN_ATTENTE"
+  | "NOUVEAU_CRENEAU"
+  | "CRENEAU_ACCEPTE"
+  | "CONFIRME"
+  | "EN_COURS"
+  | "TERMINE"
+  | "ANNULE"
+  | "ABSENT"
+
 export type PaymentStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED"
 export type PaymentMethod = "MTN_MONEY" | "AIRTEL_MONEY" | "CARD"
 
@@ -88,6 +98,15 @@ export type DoctorProfileData = {
   consultationFee:   number
   bio:               string | null
   availabilities:    object | null
+}
+
+export type CabinetMedecin = {
+  id:      string
+  name:    string
+  address: string
+  city:    string
+  phone:   string
+  email?:  string | null
 }
 
 // ─── Types Prisma étendus ─────────────────────────────────────────────────────
@@ -161,6 +180,15 @@ export type BookAppointmentInput = {
   notes?:      string
 }
 
+export type BookPresentielInput = {
+  patientId?:  string
+  doctorId:    string
+  cabinetId:   string
+  scheduledAt: string
+  duration:    15 | 30 | 45 | 60
+  reason:      string
+}
+
 export type CreateHomeVisitInput = {
   patientId:   string
   type:        HomeVisitType
@@ -185,6 +213,17 @@ export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = {
   COMPLETED:         "Terminé",
   CANCELLED:         "Annulé",
   NO_SHOW:           "Absent",
+}
+
+export const PRESENTIEL_STATUS_LABELS: Record<PresentielStatus, string> = {
+  EN_ATTENTE:       "En attente",
+  NOUVEAU_CRENEAU:  "Nouveau créneau proposé",
+  CRENEAU_ACCEPTE:  "Créneau accepté",
+  CONFIRME:         "Confirmé",
+  EN_COURS:         "En cours",
+  TERMINE:          "Terminé",
+  ANNULE:           "Annulé",
+  ABSENT:           "Absent",
 }
 
 export const HOME_VISIT_STATUS_LABELS: Record<HomeVisitStatus, string> = {

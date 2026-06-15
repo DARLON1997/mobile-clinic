@@ -190,6 +190,67 @@ body {
   animation: spin 0.7s linear infinite;
 }
 
+.calendrier-jour {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 0.75rem;
+  background: white;
+  border: 1px solid transparent;
+  color: #111827;
+  transition: all 0.2s ease;
+}
+
+.calendrier-jour:hover:not(.past):not(:disabled) {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.calendrier-jour.selected {
+  background: #bfdbfe;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+
+.calendrier-jour.past {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.creneaux-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.creneau-btn {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid #d1d5db;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.85rem;
+  color: #374151;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.creneau-btn:hover:not(:disabled) {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.creneau-btn.selected {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+
+.creneau-btn.taken {
+  background: #f8fafc;
+  border-color: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
 /* Bouton gold */
 .btn-gold {
   background: linear-gradient(135deg, var(--mc-rose-gold), var(--mc-rose-light));

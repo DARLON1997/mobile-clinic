@@ -30,6 +30,16 @@ export async function GET(req: Request) {
           avatarUrl:       true,
         },
       },
+      cabinet: {
+        select: {
+          id:      true,
+          name:    true,
+          address: true,
+          city:    true,
+          phone:   true,
+          email:   true,
+        },
+      },
     },
     orderBy: { createdAt: "asc" },
   })

@@ -22,6 +22,7 @@ const NAV: Record<UserRole, NavItem[]> = {
   SUPER_ADMIN: [
     { href: "/admin",                label: "Tableau de bord",  icon: LayoutDashboard },
     { href: "/admin/approvals",      label: "Autorisations",    icon: ShieldCheck },
+    { href: "/admin/presentiel",     label: "Présentiel",       icon: CalendarDays },
     { href: "/admin/doctors",        label: "Médecins",         icon: Video },
     { href: "/admin/users",          label: "Utilisateurs",     icon: Users },
     { href: "/admin/lab-exams",      label: "Examens labo",     icon: FlaskConical },
@@ -39,6 +40,7 @@ const NAV: Record<UserRole, NavItem[]> = {
   PATIENT: [
     { href: "/patient",                label: "Accueil",         icon: LayoutDashboard },
     { href: "/patient/book",           label: "Prendre un RDV",  icon: CalendarCheck },
+    { href: "/patient/presentiel",     label: "Présentiel",      icon: CalendarDays },
     { href: "/patient/appointments",   label: "Mes RDV",         icon: CalendarCheck },
     { href: "/patient/home-visit",     label: "Soin à domicile", icon: Home },
     { href: "/patient/lab-exams",      label: "Examens labo",    icon: FlaskConical },

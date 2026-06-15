@@ -24,13 +24,24 @@ enum AppointmentStatus {
   PENDING            // En attente validation Call Center
   AWAITING_APPROVAL  // Soumis à l'Admin, en attente
   APPROVED           // Approuvé par l'Admin
-  REJECTED           // Refusé par l'Admin
+  REJECTED           // Refusé
   PAYMENT_PENDING    // En attente de paiement
   CONFIRMED          // Payé et confirmé
   IN_PROGRESS        // Consultation en cours
   COMPLETED          // Consultation terminée
   CANCELLED          // Annulé
   NO_SHOW            // Patient absent
+}
+
+enum PresentielStatus {
+  EN_ATTENTE
+  NOUVEAU_CRENEAU
+  CRENEAU_ACCEPTE
+  CONFIRME
+  EN_COURS
+  TERMINE
+  ANNULE
+  ABSENT
 }
 
 enum PaymentStatus {
@@ -93,6 +104,11 @@ model User {
   appointmentsAsPatient    Appointment[] @relation("PatientAppointments")
   appointmentsAsDoctor     Appointment[] @relation("DoctorAppointments")
   appointmentsAsCallCenter Appointment[] @relation("CallCenterAppointments")
+
+  cabinet              CabinetMedecin?          @relation("DoctorCabinet")
+  rdvPresentielPatient RendezVousPresentiel[]   @relation("PatientRdvPresentiel")
+  rdvPresentielDoctor  RendezVousPresentiel[]   @relation("DoctorRdvPresentiel")
+  rdvPresentielCC      RendezVousPresentiel[]   @relation("CallCenterRdvPresentiel")
 
   // Visites à domicile selon le rôle
   homeVisitsAsPatient HomeVisit[] @relation("PatientHomeVisits")
@@ -180,6 +196,55 @@ model DoctorProfile {
   updatedAt         DateTime          @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Cabinet Médical
+// ─────────────────────────────────────────────────
+model CabinetMedecin {
+  id        String   @id @default(cuid())
+  doctorId  String   @unique
+  name      String
+  address   String
+  city      String
+  phone     String
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  doctor     User                   @relation("DoctorCabinet", fields: [doctorId], references: [id])
+  presentiels RendezVousPresentiel[]
+
+  @@index([doctorId])
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Présentiel
+// ─────────────────────────────────────────────────
+model RendezVousPresentiel {
+  id           String          @id @default(cuid())
+  patientId    String
+  doctorId     String
+  callCenterId String?
+  cabinetId    String
+  scheduledAt  DateTime
+  duration     Int             @default(30)
+  status       PresentielStatus @default(EN_ATTENTE)
+  reason       String
+  notes        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @default(now())
+
+  patient    User           @relation("PatientRdvPresentiel", fields: [patientId], references: [id])
+  doctor     User           @relation("DoctorRdvPresentiel", fields: [doctorId], references: [id])
+  callCenter User?          @relation("CallCenterRdvPresentiel", fields: [callCenterId], references: [id])
+  cabinet    CabinetMedecin @relation(fields: [cabinetId], references: [id])
+  payment    Payment?
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([cabinetId])
+  @@index([status])
 }
 
 // ─────────────────────────────────────────────────
@@ -313,6 +378,8 @@ model Payment {
   nursingCare       NursingCare?      @relation(fields: [nursingCareId], references: [id])
   elderlyCare       ElderlyCare?      @relation(fields: [elderlyCareId], references: [id])
   commandePharmacie CommandePharmacie? @relation(fields: [commandePharmacieId], references: [id])
+  presentiel        RendezVousPresentiel? @relation(fields: [presentielId], references: [id])
+  presentielId      String?           @unique
 
   @@index([userId])
   @@index([status])

@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server"
-import { prisma }       from "@/lib/prisma"
-import { z }            from "zod"
-import { sendSMS }      from "@/lib/africas-talking"
+import { NextResponse }  from "next/server"
+import { prisma }        from "@/lib/prisma"
+import { z }             from "zod"
+import { sendEmail, emailTemplates } from "@/lib/mailer"
 import { checkApiLimit } from "@/lib/rate-limit"
 
 const schema = z.object({ email: z.string().email() })
@@ -10,9 +10,10 @@ function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
-function maskPhone(phone: string): string {
-  if (phone.length < 4) return phone
-  return `+242 ●●●●●●● ${phone.slice(-2)}`
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@")
+  if (!local || !domain) return email
+  return `${local.slice(0, 3)}***@${domain}`
 }
 
 export async function POST(req: Request) {
@@ -24,15 +25,16 @@ export async function POST(req: Request) {
 
   try {
     const { email } = schema.parse(await req.json())
+    const normalizedEmail = email.toLowerCase().trim()
 
     const user = await prisma.user.findUnique({
-      where:  { email: email.toLowerCase().trim() },
-      select: { id: true, phone: true, isActive: true },
+      where:  { email: normalizedEmail },
+      select: { id: true, email: true, isActive: true },
     })
 
     // Même réponse que le compte existe ou non (évite l'énumération d'emails)
     if (!user || !user.isActive) {
-      return NextResponse.json({ success: true, maskedPhone: "+242 ●●●●●●● ??" })
+      return NextResponse.json({ success: true, maskedEmail: `${email.slice(0, 3)}***@${email.split("@")[1] ?? ""}` })
     }
 
     const code      = generateOtp()
@@ -43,12 +45,13 @@ export async function POST(req: Request) {
       data:  { otpCode: code, otpExpiry: expiresAt },
     })
 
-    await sendSMS(
-      user.phone,
-      `Mobile Clinic — Code de réinitialisation : ${code}. Valable 5 min. Ne partagez jamais ce code.`
+    await sendEmail(
+      user.email,
+      "Réinitialisation de mot de passe — Mobile Clinic",
+      emailTemplates.otp(code, "reset")
     )
 
-    return NextResponse.json({ success: true, maskedPhone: maskPhone(user.phone) })
+    return NextResponse.json({ success: true, maskedEmail: maskEmail(user.email) })
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "Email invalide." }, { status: 400 })

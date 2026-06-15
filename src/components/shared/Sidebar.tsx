@@ -35,6 +35,7 @@ const NAV: Record<UserRole, NavItem[]> = {
   MEDECIN: [
     { href: "/doctor",              label: "Planning",    icon: LayoutDashboard },
     { href: "/doctor/appointments", label: "Rendez-vous", icon: CalendarCheck },
+    { href: "/doctor/presentiel",   label: "Présentiel",  icon: CalendarDays },
     { href: "/doctor/history",      label: "Historique",  icon: History },
   ],
   PATIENT: [

@@ -59,11 +59,20 @@ export async function POST(req: Request) {
       data:  { otpCode: code, otpExpiry: expiresAt },
     })
 
-    await sendEmail(
-      user.email,
-      "Code de connexion — Mobile Clinic",
-      emailTemplates.otp(code, "login")
-    )
+    try {
+      await sendEmail(
+        user.email,
+        "Code de connexion — Mobile Clinic",
+        emailTemplates.otp(code, "login")
+      )
+    } catch (emailErr) {
+      console.error("[pre-login] SMTP error:", emailErr)
+      console.info("[pre-login] OTP (SMTP indisponible) →", code)
+      return NextResponse.json(
+        { error: "Impossible d'envoyer le code par email. Configurez SMTP_USER et SMTP_PASS sur Vercel." },
+        { status: 503 }
+      )
+    }
 
     return NextResponse.json({ success: true, maskedEmail: maskEmail(user.email) })
   } catch (err) {

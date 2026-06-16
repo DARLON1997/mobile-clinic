@@ -1,15 +1,21 @@
-import { Resend } from "resend"
-
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function sendEmail(to: string, subject: string, html: string) {
-  const { error } = await resend.emails.send({
-    from:    "Mobile Clinic <onboarding@resend.dev>",
-    to,
-    subject,
-    html,
+  const res = await fetch("https://api.resend.com/emails", {
+    method:  "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type":  "application/json",
+    },
+    body: JSON.stringify({
+      from:    "Mobile Clinic <onboarding@resend.dev>",
+      to:      [to],
+      subject,
+      html,
+    }),
   })
-  if (error) throw new Error(error.message)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { message?: string }).message ?? `Resend error ${res.status}`)
+  }
 }
 
 // ─── Layout HTML commun ───────────────────────────────────────────────────────

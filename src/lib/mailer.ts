@@ -1,34 +1,15 @@
-/**
- * Nodemailer — Emails transactionnels Mobile Clinic
- * SMTP : Gmail (App Password)
- * Couleur marque : #C8906A (terracotta)
- */
+import { Resend } from "resend"
 
-import nodemailer from "nodemailer"
+const resend = new Resend(process.env.RESEND_API_KEY)
 
-function getTransporter() {
-  return nodemailer.createTransport({
-    host:   process.env.SMTP_HOST ?? "smtp.gmail.com",
-    port:   Number(process.env.SMTP_PORT ?? 587),
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  })
-}
-
-/**
- * Envoie un email HTML transactionnel.
- */
 export async function sendEmail(to: string, subject: string, html: string) {
-  const transporter = getTransporter()
-  await transporter.sendMail({
-    from:    process.env.EMAIL_FROM ?? "Mobile Clinic <noreply@mobileclinic.cg>",
+  const { error } = await resend.emails.send({
+    from:    "Mobile Clinic <onboarding@resend.dev>",
     to,
     subject,
     html,
   })
+  if (error) throw new Error(error.message)
 }
 
 // ─── Layout HTML commun ───────────────────────────────────────────────────────

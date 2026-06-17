@@ -4,10 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/check-explicit-deps.js",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "check-deps": "node scripts/check-explicit-deps.js",
+    "verify-schema": "tsx scripts/verify-schema-sync.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

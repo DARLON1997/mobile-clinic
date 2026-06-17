@@ -5,6 +5,7 @@ import { z } from "zod"
 import { sendEmail, emailTemplates } from "@/lib/mailer"
 import { sendSMS } from "@/lib/africas-talking"
 import { checkApiLimit } from "@/lib/rate-limit"
+import { logServerError } from "@/lib/error-logger"
 
 const schema = z.object({
   firstName:        z.string().min(2),
@@ -107,7 +108,7 @@ export async function POST(req: Request) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "Données invalides.", details: err.issues }, { status: 400 })
     }
-    console.error("[register]", err)
+    logServerError("REGISTER", err)
     return NextResponse.json({ error: "Erreur serveur." }, { status: 500 })
   }
 }

@@ -95,3 +95,36 @@ DATABASE_URL=postgresql://USER:PASS@HOST:5432/mobile_clinic
 AUTH_SECRET=<openssl rand -base64 32>
 NEXTAUTH_URL=http://localhost:3000
 ```
+
+## Règles opérationnelles (post-audit "Erreur serveur.")
+
+### RÈGLE MOT DE PASSE DB
+Après tout changement de mot de passe Supabase :
+1. Mettre à jour `DATABASE_URL` et `DIRECT_URL` sur Vercel dans les 3 environnements
+2. Visiter `/api/health` en production → doit retourner `{ "database": "connected" }`
+3. **Le mot de passe ne doit contenir que des lettres et des chiffres** — les caractères spéciaux (`@` `#` `%` `!`) cassent les URLs de connexion PgBouncer
+
+### RÈGLE MIGRATION DB
+Si `npx prisma migrate dev` échoue (port 5432 bloqué) :
+1. Appliquer le patch SQL manuellement dans Supabase SQL Editor (scripts idempotents uniquement)
+2. Exécuter `npm run verify-schema` pour confirmer la synchronisation
+3. Ne jamais considérer une migration terminée sans avoir vérifié que schéma réel = schema.prisma
+
+### RÈGLE NOUVELLE DÉPENDANCE
+Avant d'ajouter un package :
+1. `npm install <pkg> --save` — jamais compter sur une peer dependency implicite
+2. Vérifier si ESM-only : `cat node_modules/<pkg>/package.json | grep '"type"'`
+3. Si `"type": "module"` → utiliser `fetch()` natif vers l'API REST à la place du SDK
+4. Vérifier : `npm run check-deps` doit passer sans erreur
+
+### RÈGLE DEBUG PRODUCTION
+- Ne jamais exposer `err.message` dans la réponse JSON au frontend
+- Utiliser `logServerError("CONTEXTE", err)` dans tous les catch des routes API critiques
+- Consulter **Vercel → Deployments → Functions → Logs** pour lire le détail
+
+### Health check
+`GET /api/health` — route publique, retourne `{ database: "connected" }` ou `503`
+
+### Scripts de garde-fous
+- `npm run check-deps` — vérifie que tous les imports sont déclarés dans package.json (lancé automatiquement avant `npm run build`)
+- `npm run verify-schema` — compare les colonnes réelles de la DB avec schema.prisma

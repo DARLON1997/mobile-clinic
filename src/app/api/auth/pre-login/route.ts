@@ -79,7 +79,8 @@ export async function POST(req: Request) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "Données invalides." }, { status: 400 })
     }
-    console.error("[pre-login]", err)
-    return NextResponse.json({ error: "Erreur serveur." }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error("[pre-login] FATAL:", msg)
+    return NextResponse.json({ error: `DEBUG: ${msg}` }, { status: 500 })
   }
 }

@@ -66,10 +66,10 @@ export async function POST(req: Request) {
         emailTemplates.otp(code, "login")
       )
     } catch (emailErr) {
-      console.error("[pre-login] SMTP error:", emailErr)
-      console.info("[pre-login] OTP (SMTP indisponible) →", code)
+      console.error("[pre-login] Resend error:", emailErr)
+      console.info("[pre-login] OTP (email indisponible) →", code)
       return NextResponse.json(
-        { error: "Impossible d'envoyer le code par email. Configurez SMTP_USER et SMTP_PASS sur Vercel." },
+        { error: "Impossible d'envoyer le code par email. Vérifiez la configuration Resend (domaine vérifié requis)." },
         { status: 503 }
       )
     }

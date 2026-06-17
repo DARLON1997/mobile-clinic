@@ -155,13 +155,18 @@ export async function POST(req: Request) {
 
     // ── APPROVE ───────────────────────────────────────────────────────────────
     if (decision === "APPROVE") {
-      // Créer salle Daily.co si pas encore créée
+      // Créer salle Daily.co si pas encore créée et clé API configurée
       let videoRoomName: string | null = null
       let videoRoomUrl:  string | null = null
-      if (!appointment.videoRoomName) {
-        const room = await createVideoRoom(appointmentId, appointment.scheduledAt)
-        videoRoomName = room.name
-        videoRoomUrl  = room.url
+      if (!appointment.videoRoomName && process.env.DAILY_API_KEY) {
+        try {
+          const room = await createVideoRoom(appointmentId, appointment.scheduledAt)
+          videoRoomName = room.name
+          videoRoomUrl  = room.url
+        } catch (dailyErr) {
+          // Non-bloquant : l'approbation continue même si Daily.co échoue
+          console.error("[approvals] Daily.co room creation failed:", dailyErr)
+        }
       }
 
       // RÈGLE R8 : transaction atomique

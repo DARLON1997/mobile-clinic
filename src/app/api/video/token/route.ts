@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { createRoomToken } from "@/lib/daily"
+import { createRoomToken, createVideoRoom } from "@/lib/daily"
 import { z } from "zod"
 
 const schema = z.object({ appointmentId: z.string().cuid() })
@@ -46,8 +46,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "RDV non trouvé ou non autorisé." }, { status: 403 })
     }
 
-    if (!appointment.videoRoomName) {
-      return NextResponse.json({ error: "Salle vidéo non encore créée." }, { status: 404 })
+    // Créer la salle à la volée si elle n'existe pas encore
+    let videoRoomName = appointment.videoRoomName
+    let videoRoomUrl  = appointment.videoRoomUrl
+    if (!videoRoomName) {
+      if (!process.env.DAILY_API_KEY) {
+        return NextResponse.json(
+          { error: "Salle vidéo non configurée. Contactez l'administrateur." },
+          { status: 503 }
+        )
+      }
+      try {
+        const room = await createVideoRoom(appointment.id, appointment.scheduledAt)
+        videoRoomName = room.name
+        videoRoomUrl  = room.url
+        await prisma.appointment.update({
+          where: { id: appointmentId },
+          data:  { videoRoomName: room.name, videoRoomUrl: room.url },
+        })
+      } catch (dailyErr) {
+        console.error("[video/token] Daily.co room creation failed:", dailyErr)
+        return NextResponse.json(
+          { error: "Impossible de créer la salle vidéo. Réessayez dans quelques instants." },
+          { status: 503 }
+        )
+      }
     }
 
     // RÈGLE R2 : fenêtre temporelle
@@ -90,13 +113,13 @@ export async function POST(req: Request) {
 
     const tokenRole = role === "MEDECIN" ? "owner" : "attendee"
     const token = await createRoomToken(
-      appointment.videoRoomName,
+      videoRoomName,
       session.user.id,
       tokenRole,
       appointment.scheduledAt
     )
 
-    return NextResponse.json({ success: true, token, roomUrl: appointment.videoRoomUrl })
+    return NextResponse.json({ success: true, token, roomUrl: videoRoomUrl })
   } catch (err) {
     if (err instanceof z.ZodError) return NextResponse.json({ error: "Données invalides." }, { status: 400 })
     console.error("[video/token]", err)

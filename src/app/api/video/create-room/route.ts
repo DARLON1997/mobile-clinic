@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
   await prisma.appointment.update({
     where: { id: appointmentId },
-    data:  { videoRoomUrl: room.name, videoRoomName: room.name },
+    data:  { videoRoomUrl: room.url, videoRoomName: room.name },
   })
 
   return NextResponse.json({ success: true, data: room })

@@ -52,7 +52,7 @@ export async function createVideoRoom(appointmentId: string, scheduledAt: Date) 
   })
 
   return {
-    url:  `https://${process.env.DAILY_DOMAIN}/${roomName}`,
+    url:  (room as { url: string }).url,
     name: roomName,
     expiresAt: new Date(expiresAt * 1000),
   }

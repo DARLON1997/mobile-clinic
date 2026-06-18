@@ -24,6 +24,7 @@ export default function PatientConsultationPage() {
 
   const [appt,    setAppt]    = useState<AppointmentInfo | null>(null)
   const [token,   setToken]   = useState<string | null>(null)
+  const [roomUrl, setRoomUrl] = useState<string | null>(null)
   const [error,   setError]   = useState("")
   const [loading, setLoading] = useState(true)
   const [endModal, setEndModal] = useState(false)
@@ -62,6 +63,7 @@ export default function PatientConsultationPage() {
       }
 
       setToken(tokenJson.token)
+      setRoomUrl(tokenJson.roomUrl)
       setLoading(false)
     }
     init()
@@ -146,9 +148,9 @@ export default function PatientConsultationPage() {
 
       {/* Salle vidéo */}
       <div className="h-[560px] overflow-hidden rounded-2xl border border-[#2A2A2A] bg-[#0A0A0A]">
-        {appt?.videoRoomUrl && token ? (
+        {roomUrl && token ? (
           <VideoRoom
-            roomUrl={appt.videoRoomUrl}
+            roomUrl={roomUrl}
             token={token}
             onLeave={() => setEndModal(true)}
           />

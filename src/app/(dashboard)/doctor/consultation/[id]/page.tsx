@@ -24,9 +24,10 @@ type AppointmentData = {
 export default function ConsultationPage() {
   const { id }  = useParams<{ id: string }>()
   const router  = useRouter()
-  const [appt,   setAppt]   = useState<AppointmentData | null>(null)
-  const [token,  setToken]  = useState<string | null>(null)
-  const [error,  setError]  = useState("")
+  const [appt,    setAppt]    = useState<AppointmentData | null>(null)
+  const [token,   setToken]   = useState<string | null>(null)
+  const [roomUrl, setRoomUrl] = useState<string | null>(null)
+  const [error,   setError]   = useState("")
   const [loading, setLoading] = useState(true)
   const [tab,    setTab]    = useState<"record" | "prescription">("record")
   const [endModal, setEndModal] = useState(false)
@@ -52,6 +53,7 @@ export default function ConsultationPage() {
         return
       }
       setToken(tokenJson.token)
+      setRoomUrl(tokenJson.roomUrl)
       setLoading(false)
     }
     init()
@@ -98,9 +100,9 @@ export default function ConsultationPage() {
       <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
         {/* Salle vidéo */}
         <div className="h-[500px] overflow-hidden rounded-2xl bg-gray-900">
-          {appt?.videoRoomUrl && token ? (
+          {roomUrl && token ? (
             <VideoRoom
-              roomUrl={appt.videoRoomUrl}
+              roomUrl={roomUrl}
               token={token}
               onLeave={() => setEndModal(true)}
             />

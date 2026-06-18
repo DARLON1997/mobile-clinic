@@ -65,21 +65,38 @@ export default function BookPage() {
     }
   }
 
-  // Générer des créneaux fictifs pour la semaine (à remplacer par API disponibilités)
-  function generateSlots(doctorId: string) {
+  // Créneaux toutes les 30 min de 9h à 17h30
+  // Aujourd'hui : à partir de maintenant + 30 min minimum
+  function generateSlots(_doctorId: string) {
     const result: string[] = []
-    const start = new Date()
-    start.setDate(start.getDate() + 1)
-    for (let d = 0; d < 7; d++) {
-      const day = new Date(start)
-      day.setDate(start.getDate() + d)
-      if (day.getDay() === 0 || day.getDay() === 6) continue
-      for (const hour of [9, 10, 11, 14, 15, 16]) {
-        day.setHours(hour, 0, 0, 0)
-        result.push(day.toISOString())
+    const now = new Date()
+
+    function slotsForDay(day: Date): string[] {
+      const daySlots: string[] = []
+      const isToday = day.toDateString() === now.toDateString()
+      const earliest = new Date(now.getTime() + 30 * 60 * 1000) // now + 30 min
+      for (let h = 9; h < 18; h++) {
+        for (const m of [0, 30]) {
+          const slot = new Date(day)
+          slot.setHours(h, m, 0, 0)
+          if (!isToday || slot >= earliest) daySlots.push(slot.toISOString())
+        }
       }
+      return daySlots
     }
-    setSlots(result.slice(0, 12))
+
+    // Aujourd'hui (si semaine)
+    if (now.getDay() !== 0 && now.getDay() !== 6) result.push(...slotsForDay(now))
+
+    // 14 prochains jours jusqu'à avoir 24 créneaux
+    for (let d = 1; d <= 14 && result.length < 24; d++) {
+      const day = new Date(now)
+      day.setDate(now.getDate() + d)
+      if (day.getDay() === 0 || day.getDay() === 6) continue
+      result.push(...slotsForDay(day))
+    }
+
+    setSlots(result.slice(0, 24))
     setSelectedSlot(null)
   }
 
@@ -272,11 +289,12 @@ export default function BookPage() {
           <div>
             <h2 className="mb-4 text-base font-semibold text-gray-900">Choisir un créneau</h2>
             {slots.length === 0 ? (
-              <p className="text-center text-sm text-gray-400 py-8">Aucun créneau disponible.</p>
+              <p className="text-center text-sm text-gray-400 py-8">Aucun créneau disponible pour aujourd&apos;hui. Revenez demain.</p>
             ) : (
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 max-h-80 overflow-y-auto pr-1">
                 {slots.map((slot) => {
                   const d = new Date(slot)
+                  const isToday = d.toDateString() === new Date().toDateString()
                   return (
                     <button
                       key={slot}
@@ -285,10 +303,12 @@ export default function BookPage() {
                         "rounded-xl border-2 p-2 text-center text-xs transition-all",
                         selectedSlot === slot
                           ? "border-blue-600 bg-blue-50 text-blue-700 font-semibold"
-                          : "border-gray-200 text-gray-600 hover:border-blue-200"
+                          : isToday
+                            ? "border-orange-300 bg-orange-50 text-orange-700 hover:border-orange-400"
+                            : "border-gray-200 text-gray-600 hover:border-blue-200"
                       )}>
-                      <p className="font-medium">
-                        {d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" })}
+                      <p className="font-semibold">
+                        {isToday ? "Aujourd'hui" : d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" })}
                       </p>
                       <p>{d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
                     </button>

@@ -45,6 +45,26 @@ export default function LoginPage() {
         setError(data.error ?? "Email ou mot de passe incorrect.")
         return
       }
+
+      // Rôles internes : connexion directe sans étape OTP
+      if (data.skipOtp && data.directCode) {
+        const result = await signIn("credentials", {
+          email:    normalizedEmail,
+          otp:      data.directCode,
+          redirect: false,
+        })
+        if (result?.error) {
+          setError("Erreur de connexion. Réessayez.")
+          return
+        }
+        const sessionRes  = await fetch("/api/auth/session", { cache: "no-store" })
+        const sessionData = await sessionRes.json()
+        const role = sessionData?.user?.role ?? "PATIENT"
+        window.location.href = getDashboardUrl(role)
+        return
+      }
+
+      // PATIENT : afficher l'étape OTP
       setMaskedEmail(data.maskedEmail)
       setStep("otp")
       setResendTimer(60)

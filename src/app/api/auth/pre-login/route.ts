@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 
     const user = await prisma.user.findUnique({
       where:  { email },
-      select: { id: true, email: true, passwordHash: true, isActive: true },
+      select: { id: true, email: true, passwordHash: true, isActive: true, role: true },
     })
 
     if (!user || !user.isActive || !user.passwordHash) {
@@ -59,6 +59,13 @@ export async function POST(req: Request) {
       data:  { otpCode: code, otpExpiry: expiresAt },
     })
 
+    // Rôles internes : connexion directe sans email OTP
+    const INTERNAL_ROLES = ["MEDECIN", "CALL_CENTER_AGENT", "AGENT_TERRAIN", "SUPER_ADMIN"] as const
+    if ((INTERNAL_ROLES as readonly string[]).includes(user.role)) {
+      return NextResponse.json({ success: true, skipOtp: true, directCode: code, maskedEmail: maskEmail(user.email) })
+    }
+
+    // PATIENT : envoyer le code par email
     try {
       await sendEmail(
         user.email,

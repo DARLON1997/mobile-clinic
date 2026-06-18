@@ -1,7 +1,5 @@
 /**
  * Daily.co — Helper pour les salles vidéo
- * Chaque salle est créée pour un RDV précis et détruite automatiquement
- * 70 minutes après l'heure prévue.
  */
 
 const DAILY_API_URL = "https://api.daily.co/v1"
@@ -24,38 +22,60 @@ async function dailyRequest(path: string, method: "GET" | "POST" | "DELETE", bod
   return res.status !== 204 ? res.json() : null
 }
 
+type DailyRoom = { url: string; name: string }
+
+/**
+ * Récupère une salle existante par son nom.
+ */
+async function getVideoRoom(roomName: string): Promise<DailyRoom> {
+  const room = await dailyRequest(`/rooms/${roomName}`, "GET")
+  return { url: (room as DailyRoom).url, name: roomName }
+}
+
 /**
  * Crée une salle vidéo privée pour un RDV.
- * La salle expire automatiquement 70 min après scheduledAt.
+ * - Si la salle existe déjà → la récupère (idempotent)
+ * - Garantit que exp est toujours dans le futur (même pour les RDV passés)
  */
-export async function createVideoRoom(appointmentId: string, scheduledAt: Date) {
-  // La salle s'ouvre 5 min avant et expire 70 min après
-  const notBefore = Math.floor(scheduledAt.getTime() / 1000) - 5 * 60
-  const expiresAt  = Math.floor(scheduledAt.getTime() / 1000) + 70 * 60
+export async function createVideoRoom(appointmentId: string, scheduledAt: Date): Promise<DailyRoom & { expiresAt: Date }> {
+  const now         = Math.floor(Date.now() / 1000)
+  const scheduledTs = Math.floor(scheduledAt.getTime() / 1000)
+
+  // La salle s'ouvre 5 min avant le RDV (ou immédiatement si RDV passé)
+  const notBefore = Math.min(scheduledTs - 5 * 60, now)
+  // Expire 70 min après le RDV, mais au minimum 70 min à partir de maintenant
+  const expiresAt = Math.max(scheduledTs + 70 * 60, now + 70 * 60)
 
   const roomName = `mc-rdv-${appointmentId}`
 
-  const room = await dailyRequest("/rooms", "POST", {
-    name: roomName,
-    privacy: "private",
-    properties: {
-      nbf:       notBefore,
-      exp:       expiresAt,
-      max_participants: 2,
-      enable_chat: false,
-      enable_screenshare: false,
-      lang: "fr",
-      // Pas d'enregistrement automatique (confidentialité RGPD)
-      enable_recording: "local",
-      recordings_bucket: null,
-    },
-  })
-
-  return {
-    url:  (room as { url: string }).url,
-    name: roomName,
-    expiresAt: new Date(expiresAt * 1000),
+  let room: DailyRoom
+  try {
+    const created = await dailyRequest("/rooms", "POST", {
+      name: roomName,
+      privacy: "private",
+      properties: {
+        nbf:              notBefore,
+        exp:              expiresAt,
+        max_participants: 2,
+        enable_chat:      false,
+        enable_screenshare: false,
+        lang:             "fr",
+        enable_recording: "local",
+        recordings_bucket: null,
+      },
+    })
+    room = { url: (created as DailyRoom).url, name: roomName }
+  } catch (err) {
+    // Salle déjà existante → la récupérer
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.includes("already exists")) {
+      room = await getVideoRoom(roomName)
+    } else {
+      throw err
+    }
   }
+
+  return { ...room, expiresAt: new Date(expiresAt * 1000) }
 }
 
 /**
@@ -67,7 +87,7 @@ export async function deleteVideoRoom(roomName: string) {
 
 /**
  * Génère un token d'accès sécurisé pour rejoindre la salle.
- * Valide uniquement de scheduledAt-5min à scheduledAt+60min.
+ * Garantit que exp est dans le futur même pour les RDV passés.
  */
 export async function createRoomToken(
   roomName: string,
@@ -75,14 +95,17 @@ export async function createRoomToken(
   role: "owner" | "attendee",
   scheduledAt: Date
 ) {
-  const nbf = Math.floor(scheduledAt.getTime() / 1000) - 5 * 60
-  const exp = Math.floor(scheduledAt.getTime() / 1000) + 60 * 60
+  const now         = Math.floor(Date.now() / 1000)
+  const scheduledTs = Math.floor(scheduledAt.getTime() / 1000)
+
+  const nbf = Math.min(scheduledTs - 5 * 60, now)
+  const exp = Math.max(scheduledTs + 60 * 60, now + 60 * 60)
 
   const data = await dailyRequest("/meeting-tokens", "POST", {
     properties: {
-      room_name:  roomName,
-      user_id:    userId,
-      is_owner:   role === "owner",
+      room_name:        roomName,
+      user_id:          userId,
+      is_owner:         role === "owner",
       nbf,
       exp,
       enable_recording: role === "owner" ? "local" : false,

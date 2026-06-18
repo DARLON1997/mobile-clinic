@@ -65,7 +65,8 @@ export async function POST(req: Request) {
           data:  { videoRoomName: room.name, videoRoomUrl: room.url },
         })
       } catch (dailyErr) {
-        console.error("[video/token] Daily.co room creation failed:", dailyErr)
+        const msg = dailyErr instanceof Error ? dailyErr.message : String(dailyErr)
+        console.error("[video/token] Daily.co error:", msg)
         return NextResponse.json(
           { error: "Impossible de créer la salle vidéo. Réessayez dans quelques instants." },
           { status: 503 }

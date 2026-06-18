@@ -60,8 +60,6 @@ export async function createVideoRoom(appointmentId: string, scheduledAt: Date):
         enable_chat:      false,
         enable_screenshare: false,
         lang:             "fr",
-        enable_recording: "local",
-        recordings_bucket: null,
       },
     })
     room = { url: (created as DailyRoom).url, name: roomName }
@@ -103,12 +101,11 @@ export async function createRoomToken(
 
   const data = await dailyRequest("/meeting-tokens", "POST", {
     properties: {
-      room_name:        roomName,
-      user_id:          userId,
-      is_owner:         role === "owner",
+      room_name: roomName,
+      user_id:   userId,
+      is_owner:  role === "owner",
       nbf,
       exp,
-      enable_recording: role === "owner" ? "local" : false,
     },
   })
 

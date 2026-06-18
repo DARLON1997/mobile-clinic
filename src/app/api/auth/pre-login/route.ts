@@ -10,6 +10,11 @@ const schema = z.object({
   password: z.string().min(1),
 })
 
+// Mettre OTP_REQUIRED=true sur Vercel quand un domaine email est vérifié
+const OTP_REQUIRED = process.env.OTP_REQUIRED === "true"
+
+const INTERNAL_ROLES = ["MEDECIN", "CALL_CENTER_AGENT", "AGENT_TERRAIN", "SUPER_ADMIN"] as const
+
 function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
@@ -59,13 +64,19 @@ export async function POST(req: Request) {
       data:  { otpCode: code, otpExpiry: expiresAt },
     })
 
-    // Rôles internes : connexion directe sans email OTP
-    const INTERNAL_ROLES = ["MEDECIN", "CALL_CENTER_AGENT", "AGENT_TERRAIN", "SUPER_ADMIN"] as const
-    if ((INTERNAL_ROLES as readonly string[]).includes(user.role)) {
-      return NextResponse.json({ success: true, skipOtp: true, directCode: code, maskedEmail: maskEmail(user.email) })
+    const isInternal = (INTERNAL_ROLES as readonly string[]).includes(user.role)
+
+    // Connexion directe si : rôle interne OU OTP_REQUIRED désactivé
+    if (isInternal || !OTP_REQUIRED) {
+      return NextResponse.json({
+        success:    true,
+        skipOtp:    true,
+        directCode: code,
+        maskedEmail: maskEmail(user.email),
+      })
     }
 
-    // PATIENT : envoyer le code par email
+    // OTP_REQUIRED=true : envoyer le code par email (PATIENT)
     try {
       await sendEmail(
         user.email,

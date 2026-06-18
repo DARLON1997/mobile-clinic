@@ -6,10 +6,13 @@ import { Button } from "@/components/ui/button"
 import { cn, formatXAF } from "@/lib/utils"
 import { FEATURES } from "@/lib/features"
 import {
-  Video, Home, TestTube2, ArrowLeft, ArrowRight, Check, Clock, CreditCard
+  Video, Home, TestTube2, Building2, ArrowLeft, ArrowRight, Check, Clock, CreditCard, MapPin
 } from "lucide-react"
 
-type Doctor = { id: string; firstName: string; lastName: string; speciality: string; consultationFee: number }
+type Doctor = {
+  id: string; firstName: string; lastName: string; speciality: string; consultationFee: number
+  cabinetId?: string; cabinetAddress?: string; cabinetCity?: string; cabinetName?: string
+}
 
 const SPECIALITY_LABELS: Record<string, string> = {
   GENERALISTE:   "Généraliste",   CARDIOLOGUE: "Cardiologue",
@@ -22,7 +25,7 @@ const SPECIALITY_LABELS: Record<string, string> = {
 export default function BookPage() {
   const router  = useRouter()
   const [step, setStep]     = useState(0)
-  const [type, setType]     = useState<"VIDEO" | "CARE" | "SAMPLING" | null>(null)
+  const [type, setType]     = useState<"VIDEO" | "CARE" | "SAMPLING" | "PRESENTIEL" | null>(null)
   const [doctors, setDoctors]         = useState<Doctor[]>([])
   const [doctorsLoaded, setDoctorsLoaded] = useState(false)
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
@@ -44,12 +47,16 @@ export default function BookPage() {
         // L'API retourne { id, doctorProfile: { firstName, ... } } — on aplatit
         const mapped: Doctor[] = (json.data ?? [])
           .filter((d: { doctorProfile: unknown }) => d.doctorProfile)
-          .map((d: { id: string; doctorProfile: { firstName: string; lastName: string; speciality: string; consultationFee: number } }) => ({
+          .map((d: { id: string; doctorProfile: { firstName: string; lastName: string; speciality: string; consultationFee: number }; cabinet?: { id: string; name: string; address: string; city: string } }) => ({
             id:              d.id,
             firstName:       d.doctorProfile.firstName,
             lastName:        d.doctorProfile.lastName,
             speciality:      d.doctorProfile.speciality,
             consultationFee: d.doctorProfile.consultationFee,
+            cabinetId:       d.cabinet?.id,
+            cabinetName:     d.cabinet?.name,
+            cabinetAddress:  d.cabinet?.address,
+            cabinetCity:     d.cabinet?.city,
           }))
         setDoctors(mapped)
       }
@@ -81,18 +88,15 @@ export default function BookPage() {
     setLoading(true)
     setError("")
     try {
-      const apptRes = await fetch("/api/appointments", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          doctorId:    selectedDoctor!.id,
-          scheduledAt: selectedSlot!,
-          reason:      reason.trim(),
-          duration:    30,
-        }),
-      })
-      const apptJson = await apptRes.json()
-      if (!apptRes.ok) throw new Error(apptJson.error)
+      const isPresentiel = type === "PRESENTIEL"
+      const url  = isPresentiel ? "/api/presentiel" : "/api/appointments"
+      const body = isPresentiel
+        ? { doctorId: selectedDoctor!.id, cabinetId: selectedDoctor!.cabinetId, scheduledAt: selectedSlot!, reason: reason.trim(), duration: 30 }
+        : { doctorId: selectedDoctor!.id, scheduledAt: selectedSlot!, reason: reason.trim(), duration: 30 }
+
+      const res  = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
       setDone(true)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur lors de la création du rendez-vous.")
@@ -181,13 +185,14 @@ export default function BookPage() {
           <div className="space-y-3">
             <h2 className="text-base font-semibold text-gray-900">Type de service</h2>
             {[
-              { value: "VIDEO"    as const, icon: Video,     label: "Consultation vidéo",       desc: "Consultez un médecin en ligne" },
-              { value: "CARE"     as const, icon: Home,      label: "Soin à domicile",           desc: "Un agent se déplace chez vous" },
-              { value: "SAMPLING" as const, icon: TestTube2, label: "Prélèvement à domicile",   desc: "Analyses biologiques chez vous" },
+              { value: "VIDEO"      as const, icon: Video,     label: "Consultation vidéo",       desc: "Consultez un médecin en ligne" },
+              { value: "PRESENTIEL" as const, icon: Building2, label: "Consultation en présentiel", desc: "En cabinet, chez le médecin" },
+              { value: "CARE"       as const, icon: Home,      label: "Soin à domicile",           desc: "Un agent se déplace chez vous" },
+              { value: "SAMPLING"   as const, icon: TestTube2, label: "Prélèvement à domicile",   desc: "Analyses biologiques chez vous" },
             ].map(({ value, icon: Icon, label, desc }) => (
               <button
                 key={value}
-                onClick={() => { setType(value); if (value === "VIDEO") loadDoctors() }}
+                onClick={() => { setType(value); if (value === "VIDEO" || value === "PRESENTIEL") loadDoctors() }}
                 className={cn(
                   "w-full rounded-xl border-2 p-4 text-left transition-all",
                   type === value ? "border-blue-600 bg-blue-50 light-surface" : "border-gray-200 hover:border-blue-200"
@@ -208,7 +213,7 @@ export default function BookPage() {
         )}
 
         {/* ÉTAPE 2 — Médecin */}
-        {step === 1 && type === "VIDEO" && (
+        {step === 1 && (type === "VIDEO" || type === "PRESENTIEL") && (
           <div>
             <h2 className="mb-4 text-base font-semibold text-gray-900">Choisir un médecin</h2>
             <div className="mb-4 flex flex-wrap gap-2">
@@ -220,13 +225,17 @@ export default function BookPage() {
                 </button>
               ))}
             </div>
-            {doctors.length === 0 ? (
-              <p className="text-center text-sm text-gray-400 py-8">Aucun médecin disponible.</p>
-            ) : (
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {doctors
-                  .filter((d) => specialityFilter === "ALL" || d.speciality === specialityFilter)
-                  .map((doc) => (
+            {(() => {
+              const filtered = doctors
+                .filter((d) => specialityFilter === "ALL" || d.speciality === specialityFilter)
+                .filter((d) => type !== "PRESENTIEL" || !!d.cabinetId)
+              return filtered.length === 0 ? (
+                <p className="text-center text-sm text-gray-400 py-8">
+                  {type === "PRESENTIEL" ? "Aucun médecin avec un cabinet disponible." : "Aucun médecin disponible."}
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {filtered.map((doc) => (
                     <button key={doc.id} onClick={() => { setSelectedDoctor(doc); generateSlots(doc.id) }}
                       className={cn(
                         "w-full rounded-xl border-2 p-3 text-left transition-all",
@@ -238,18 +247,23 @@ export default function BookPage() {
                             {doc.firstName.charAt(0)}{doc.lastName.charAt(0)}
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-gray-900">
-                              Dr {doc.firstName} {doc.lastName}
-                            </p>
+                            <p className="text-sm font-medium text-gray-900">Dr {doc.firstName} {doc.lastName}</p>
                             <p className="text-xs text-gray-400">{SPECIALITY_LABELS[doc.speciality] ?? doc.speciality}</p>
+                            {type === "PRESENTIEL" && doc.cabinetAddress && (
+                              <p className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
+                                <MapPin className="h-3 w-3" />
+                                {doc.cabinetAddress}, {doc.cabinetCity}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <p className="text-sm font-medium text-blue-700">{formatXAF(doc.consultationFee)}</p>
                       </div>
                     </button>
                   ))}
-              </div>
-            )}
+                </div>
+              )
+            })()}
           </div>
         )}
 
@@ -296,6 +310,12 @@ export default function BookPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-500">Médecin</span>
                   <span className="font-medium">Dr {selectedDoctor.firstName} {selectedDoctor.lastName}</span>
+                </div>
+              )}
+              {type === "PRESENTIEL" && selectedDoctor?.cabinetAddress && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Cabinet</span>
+                  <span className="font-medium text-right">{selectedDoctor.cabinetName}<br /><span className="text-xs text-gray-400">{selectedDoctor.cabinetAddress}, {selectedDoctor.cabinetCity}</span></span>
                 </div>
               )}
               {selectedSlot && (

@@ -26,10 +26,11 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url)
-  const page   = Math.max(1, parseInt(searchParams.get("page")  ?? "1"))
-  const limit  = Math.min(100, parseInt(searchParams.get("limit") ?? "20"))
-  const status = searchParams.get("status") ?? undefined
-  const date   = searchParams.get("date")   ?? undefined
+  const page      = Math.max(1, parseInt(searchParams.get("page")  ?? "1"))
+  const limit     = Math.min(100, parseInt(searchParams.get("limit") ?? "20"))
+  const status    = searchParams.get("status")    ?? undefined
+  const date      = searchParams.get("date")      ?? undefined
+  const activeNow = searchParams.get("activeNow") === "true"
 
   // RÈGLE R1 : le médecin ne voit que ses RDV avec adminApprovedAt non null
   const where: Record<string, unknown> = (() => {
@@ -42,12 +43,22 @@ export async function GET(req: Request) {
     }
   })()
 
-  if (status) where.status = status
-  if (date) {
-    const d = new Date(date)
-    const nextDay = new Date(d)
-    nextDay.setDate(d.getDate() + 1)
-    where.scheduledAt = { gte: d, lt: nextDay }
+  if (activeNow) {
+    // Consultations actives maintenant : fenêtre 90 min avant → 15 min après scheduledAt
+    const now = new Date()
+    where.scheduledAt = {
+      gte: new Date(now.getTime() - 90 * 60 * 1000),
+      lte: new Date(now.getTime() + 15 * 60 * 1000),
+    }
+    where.status = { in: ["CONFIRMED", "IN_PROGRESS"] }
+  } else {
+    if (status) where.status = status
+    if (date) {
+      const d = new Date(date)
+      const nextDay = new Date(d)
+      nextDay.setDate(d.getDate() + 1)
+      where.scheduledAt = { gte: d, lt: nextDay }
+    }
   }
   if (searchParams.get("doctorId"))  where.doctorId  = searchParams.get("doctorId")
   if (searchParams.get("patientId")) where.patientId = searchParams.get("patientId")
@@ -122,25 +133,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Médecin non trouvé ou non validé." }, { status: 404 })
     }
 
-    // Vérifier qu'il n'y a pas de conflit de créneau pour le médecin
     const scheduledAt = new Date(data.scheduledAt)
     if (scheduledAt <= new Date()) {
       return NextResponse.json({ error: "La date de consultation doit être dans le futur." }, { status: 400 })
     }
 
-    const windowMin = new Date(scheduledAt.getTime() - data.duration * 60 * 1000)
-    const windowMax = new Date(scheduledAt.getTime() + data.duration * 60 * 1000)
-
-    const conflict = await prisma.appointment.findFirst({
+    // Bloquer uniquement si le médecin est ACTUELLEMENT en appel vidéo (IN_PROGRESS)
+    const doctorInCall = await prisma.appointment.findFirst({
       where: {
-        doctorId:    data.doctorId,
-        scheduledAt: { gte: windowMin, lte: windowMax },
-        status:      { notIn: ["CANCELLED", "REJECTED", "NO_SHOW"] },
+        doctorId: data.doctorId,
+        status:   "IN_PROGRESS",
       },
     })
-    if (conflict) {
+    if (doctorInCall) {
       return NextResponse.json({
-        error: "Ce créneau est déjà pris pour ce médecin.",
+        error: "Ce médecin est actuellement en consultation vidéo. Veuillez réessayer dans quelques minutes.",
       }, { status: 409 })
     }
 

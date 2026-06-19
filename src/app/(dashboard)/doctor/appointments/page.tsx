@@ -7,6 +7,7 @@ import { AppointmentStatusBadge } from "@/components/shared/StatusBadge"
 import { formatDateFR } from "@/lib/utils"
 import { Video, FileText } from "lucide-react"
 import type { AppointmentWithRelations } from "@/types"
+import { ActiveConsultationBanner } from "@/components/doctor/ActiveConsultationBanner"
 
 interface SearchParams { searchParams: Promise<{ filter?: string }> }
 
@@ -51,6 +52,9 @@ export default async function DoctorAppointmentsPage({ searchParams }: SearchPar
         <h1 className="text-2xl font-bold text-gray-900">Mes rendez-vous</h1>
         <p className="text-sm text-gray-500">Uniquement les RDV approuvés par l&apos;Admin</p>
       </div>
+
+      {/* Bannière consultations actives */}
+      <ActiveConsultationBanner />
 
       <div className="mb-6 flex gap-2">
         {FILTERS.map(({ value, label }) => (

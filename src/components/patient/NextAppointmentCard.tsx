@@ -58,9 +58,9 @@ export function NextAppointmentCard({ appt }: Props) {
   const now    = new Date()
   const apptAt = new Date(appt.scheduledAt)
   const isVideoActive =
-    appt.status === "CONFIRMED" &&
-    now >= new Date(apptAt.getTime() - 5 * 60 * 1000) &&
-    now <= new Date(apptAt.getTime() + 60 * 60 * 1000)
+    (appt.status === "CONFIRMED" || appt.status === "IN_PROGRESS") &&
+    now >= new Date(apptAt.getTime() - 15 * 60 * 1000) &&
+    now <= new Date(apptAt.getTime() + 90 * 60 * 1000)
 
   const minutesLeft = Math.max(0, Math.ceil((apptAt.getTime() - now.getTime()) / 60000))
 
@@ -103,7 +103,7 @@ export function NextAppointmentCard({ appt }: Props) {
       )}
 
       <div className="flex gap-2">
-        {appt.status === "CONFIRMED" && (
+        {(appt.status === "CONFIRMED" || appt.status === "IN_PROGRESS") && (
           <Link href={`/patient/consultation/${appt.id}`}>
             <button
               disabled={!isVideoActive}

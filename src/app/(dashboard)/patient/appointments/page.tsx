@@ -84,8 +84,8 @@ export default async function PatientAppointmentsPage({ searchParams }: SearchPa
 
             const isActive = appt.status === "IN_PROGRESS"
             const isJoinable = appt.status === "CONFIRMED" &&
-              now >= new Date(appt.scheduledAt.getTime() - 5 * 60 * 1000) &&
-              now <= new Date(appt.scheduledAt.getTime() + 60 * 60 * 1000)
+              now >= new Date(appt.scheduledAt.getTime() - 15 * 60 * 1000) &&
+              now <= new Date(appt.scheduledAt.getTime() + 90 * 60 * 1000)
 
             const minutesUntil = Math.ceil((appt.scheduledAt.getTime() - now.getTime()) / 60000)
 

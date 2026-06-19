@@ -8,6 +8,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell"
 import { Button } from "@/components/ui/button"
 import { formatDateFR } from "@/lib/utils"
 import { Video, Calendar, FileText, Lock } from "lucide-react"
+import { ActiveConsultationBanner } from "@/components/doctor/ActiveConsultationBanner"
 
 export default async function DoctorDashboard() {
   const session = await auth()
@@ -70,6 +71,9 @@ export default async function DoctorDashboard() {
           <NotificationBell />
         </div>
       </div>
+
+      {/* Bannière consultations actives — se met à jour toutes les 20 s sans rechargement */}
+      <ActiveConsultationBanner />
 
       {/* Alerte règle critique */}
       <div className="mb-6 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">

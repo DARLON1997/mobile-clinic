@@ -115,28 +115,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "La date doit être dans le futur." }, { status: 400 })
     }
 
-    const windowMin = new Date(scheduledAt.getTime() - body.duration * 60 * 1000)
-    const windowMax = new Date(scheduledAt.getTime() + body.duration * 60 * 1000)
-
-    const [conflictingPresentiel, conflictingAppointment] = await Promise.all([
-      prisma.rendezVousPresentiel.findFirst({
-        where: {
-          doctorId: body.doctorId,
-          scheduledAt: { gte: windowMin, lte: windowMax },
-          status: { notIn: ["ANNULE"] },
-        },
-      }),
-      prisma.appointment.findFirst({
-        where: {
-          doctorId: body.doctorId,
-          scheduledAt: { gte: windowMin, lte: windowMax },
-          status: { notIn: ["CANCELLED", "REJECTED", "NO_SHOW"] },
-        },
-      }),
-    ])
-
-    if (conflictingPresentiel || conflictingAppointment) {
-      return NextResponse.json({ error: "Ce médecin est déjà réservé pendant ce créneau." }, { status: 409 })
+    // Bloquer uniquement si le médecin est ACTUELLEMENT en appel vidéo (IN_PROGRESS)
+    const doctorInCall = await prisma.appointment.findFirst({
+      where: { doctorId: body.doctorId, status: "IN_PROGRESS" },
+    })
+    if (doctorInCall) {
+      return NextResponse.json({
+        error: "Ce médecin est actuellement en consultation vidéo. Veuillez réessayer dans quelques minutes.",
+      }, { status: 409 })
     }
 
     const presentiel = await prisma.rendezVousPresentiel.create({

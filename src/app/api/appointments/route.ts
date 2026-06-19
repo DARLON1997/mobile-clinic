@@ -138,11 +138,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "La date de consultation doit être dans le futur." }, { status: 400 })
     }
 
-    // Bloquer uniquement si le médecin est ACTUELLEMENT en appel vidéo (IN_PROGRESS)
+    // Bloquer uniquement si le médecin est en appel vidéo actif EN CE MOMENT
+    // (scheduledAt dans les 90 dernières minutes — évite les RDV bloqués en IN_PROGRESS)
     const doctorInCall = await prisma.appointment.findFirst({
       where: {
-        doctorId: data.doctorId,
-        status:   "IN_PROGRESS",
+        doctorId:    data.doctorId,
+        status:      "IN_PROGRESS",
+        scheduledAt: { gte: new Date(Date.now() - 90 * 60 * 1000) },
       },
     })
     if (doctorInCall) {

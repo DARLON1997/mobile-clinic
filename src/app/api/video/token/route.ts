@@ -22,9 +22,18 @@ export async function POST(req: Request) {
   try {
     const { appointmentId } = schema.parse(await req.json())
 
-    // RÈGLE R1 : médecin → adminApprovedAt non null, obligatoirement en DB
-    const whereDoctor  = { id: appointmentId, doctorId:  session.user.id, adminApprovedAt: { not: null } }
-    const wherePatient = { id: appointmentId, patientId: session.user.id, status: { in: ["CONFIRMED", "IN_PROGRESS"] as ("CONFIRMED" | "IN_PROGRESS")[] } }
+    // RÈGLE R1 : médecin → adminApprovedAt non null + consultation non terminée
+    const whereDoctor  = {
+      id:              appointmentId,
+      doctorId:        session.user.id,
+      adminApprovedAt: { not: null },
+      status:          { notIn: ["COMPLETED", "CANCELLED", "REJECTED"] as ("COMPLETED" | "CANCELLED" | "REJECTED")[] },
+    }
+    const wherePatient = {
+      id:        appointmentId,
+      patientId: session.user.id,
+      status:    { in: ["CONFIRMED", "IN_PROGRESS"] as ("CONFIRMED" | "IN_PROGRESS")[] },
+    }
 
     const appointment = await prisma.appointment.findFirst({
       where: role === "MEDECIN" ? whereDoctor : wherePatient,
@@ -32,7 +41,14 @@ export async function POST(req: Request) {
 
     if (!appointment) {
       if (role === "MEDECIN") {
-        // RÈGLE R3 : audit tentative sans approbation
+        // Vérifier si c'est parce que la consultation est COMPLETED
+        const completedAppt = await prisma.appointment.findFirst({
+          where: { id: appointmentId, doctorId: session.user.id, status: "COMPLETED" },
+          select: { id: true },
+        })
+        if (completedAppt) {
+          return NextResponse.json({ error: "Cette consultation est terminée." }, { status: 410 })
+        }
         await prisma.auditLog.create({
           data: {
             userId:     session.user.id,

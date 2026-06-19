@@ -50,9 +50,10 @@ export default function PatientConsultationPage() {
       const tokenJson = await tokenRes.json()
 
       if (!tokenRes.ok) {
-        // La salle n'est pas encore ouverte
         if (tokenRes.status === 425) {
           setError(tokenJson.error ?? "La salle n'est pas encore ouverte.")
+        } else if (tokenRes.status === 410) {
+          setError("consultation-terminee")
         } else if (tokenRes.status === 404) {
           setError("La salle vidéo n'a pas encore été créée par l'administrateur.")
         } else {
@@ -87,7 +88,19 @@ export default function PatientConsultationPage() {
   if (error) return (
     <div className="mx-auto mt-20 max-w-md">
       <div className="rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] p-8 text-center">
-        {error.includes("n'est pas encore ouverte") || error.includes("pas encore créée") ? (
+        {error === "consultation-terminee" ? (
+          <>
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-500/20">
+              <svg className="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="mb-2 text-lg font-semibold text-white">Consultation terminée</h2>
+            <p className="text-sm text-[#AAAAAA]">
+              Le médecin a mis fin à cette consultation. Vous pouvez consulter le résumé dans vos rendez-vous.
+            </p>
+          </>
+        ) : error.includes("n'est pas encore ouverte") || error.includes("pas encore créée") ? (
           <>
             <Clock className="mx-auto mb-4 h-12 w-12 text-[#C8906A]" />
             <h2 className="mb-2 text-lg font-semibold text-white">Salle pas encore disponible</h2>

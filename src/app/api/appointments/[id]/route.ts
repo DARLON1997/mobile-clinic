@@ -5,12 +5,12 @@ import { z } from "zod"
 
 interface Params { params: Promise<{ id: string }> }
 
-// Schéma PUT (modifier RDV) — Call Center ou Admin
+// Schéma PUT (modifier RDV)
 const putSchema = z.object({
   scheduledAt: z.string().datetime().optional(),
   duration:    z.number().optional(),
   notes:       z.string().optional(),
-  status:      z.enum(["CANCELLED"]).optional(),      // Patient peut annuler
+  status:      z.enum(["CANCELLED", "COMPLETED"]).optional(),
   adminNote:   z.string().optional(),
 })
 
@@ -73,7 +73,7 @@ export async function PUT(req: Request, { params }: Params) {
 
   const { id } = await params
 
-  const allowed = ["SUPER_ADMIN", "CALL_CENTER_AGENT", "PATIENT"]
+  const allowed = ["SUPER_ADMIN", "CALL_CENTER_AGENT", "PATIENT", "MEDECIN"]
   if (!allowed.includes(session.user.role)) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 })
   }
@@ -84,7 +84,7 @@ export async function PUT(req: Request, { params }: Params) {
     const appointment = await prisma.appointment.findUnique({ where: { id } })
     if (!appointment) return NextResponse.json({ error: "Non trouvé" }, { status: 404 })
 
-    // Patient ne peut qu'annuler ses propres RDV
+    // Patient : peut seulement annuler ses propres RDV
     if (session.user.role === "PATIENT") {
       if (appointment.patientId !== session.user.id) {
         return NextResponse.json({ error: "Non autorisé" }, { status: 403 })
@@ -99,7 +99,34 @@ export async function PUT(req: Request, { params }: Params) {
       return NextResponse.json({ success: true, data: updated })
     }
 
-    // Admin / Call Center peuvent modifier date et notes
+    // Médecin : peut uniquement marquer COMPLETED un RDV qui lui appartient (adminApproval requis)
+    if (session.user.role === "MEDECIN") {
+      if (appointment.doctorId !== session.user.id || appointment.adminApprovedAt === null) {
+        return NextResponse.json({ error: "Accès non autorisé." }, { status: 403 })
+      }
+      if (body.status !== "COMPLETED") {
+        return NextResponse.json({ error: "Le médecin ne peut que terminer un RDV." }, { status: 403 })
+      }
+      if (appointment.status === "COMPLETED") {
+        return NextResponse.json({ error: "Cette consultation est déjà terminée." }, { status: 409 })
+      }
+      const updated = await prisma.appointment.update({
+        where: { id },
+        data:  { status: "COMPLETED" },
+      })
+      await prisma.auditLog.create({
+        data: {
+          userId:     session.user.id,
+          action:     "CONSULTATION_COMPLETED",
+          targetId:   id,
+          targetType: "Appointment",
+          details:    { patientId: appointment.patientId },
+        },
+      })
+      return NextResponse.json({ success: true, data: updated })
+    }
+
+    // Admin / Call Center : modification générale
     const updateData: Record<string, unknown> = {}
     if (body.scheduledAt) updateData.scheduledAt = new Date(body.scheduledAt)
     if (body.duration)    updateData.duration    = body.duration

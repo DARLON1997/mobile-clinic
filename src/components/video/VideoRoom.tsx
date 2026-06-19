@@ -13,18 +13,15 @@ interface VideoRoomProps {
 type PermState = "checking" | "prompt" | "requesting" | "granted" | "denied"
 
 export function VideoRoom({ roomUrl, token, onLeave }: VideoRoomProps) {
-  const iframeRef  = useRef<HTMLIFrameElement>(null)
-  const streamRef  = useRef<MediaStream | null>(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
   const [permState, setPermState] = useState<PermState>("checking")
 
-  // Construire l'URL Daily.co avec token et paramètres UI
   const src = `${roomUrl}?t=${token}&lang=fr`
 
-  // Vérifier si les permissions sont déjà accordées
   useEffect(() => {
     async function check() {
       if (!navigator?.mediaDevices?.getUserMedia) {
-        setPermState("granted") // Navigateur sans API → charger l'iframe directement
+        setPermState("granted")
         return
       }
       try {
@@ -32,11 +29,10 @@ export function VideoRoom({ roomUrl, token, onLeave }: VideoRoomProps) {
           navigator.permissions.query({ name: "camera" as PermissionName }),
           navigator.permissions.query({ name: "microphone" as PermissionName }),
         ])
-        if (cam.state === "granted" && mic.state === "granted") {
-          // Déjà autorisé → acquérir le stream pour "réchauffer" la permission
-          warmUpCamera()
-        } else if (cam.state === "denied" || mic.state === "denied") {
+        if (cam.state === "denied" || mic.state === "denied") {
           setPermState("denied")
+        } else if (cam.state === "granted" && mic.state === "granted") {
+          setPermState("granted")
         } else {
           setPermState("prompt")
         }
@@ -45,42 +41,26 @@ export function VideoRoom({ roomUrl, token, onLeave }: VideoRoomProps) {
       }
     }
     check()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Libérer le stream quand le composant est démonté
-  useEffect(() => {
-    return () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop())
-    }
   }, [])
-
-  async function warmUpCamera() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      streamRef.current = stream  // Garder le stream en vie → l'iframe hérite la permission
-      setPermState("granted")
-    } catch {
-      setPermState("granted") // Pas de caméra physique → laisser Daily.co gérer
-    }
-  }
 
   async function requestPermissions() {
     setPermState("requesting")
     try {
+      // Obtenir la permission puis libérer immédiatement la caméra
+      // Daily.co accède à la caméra depuis l'iframe — ne pas la bloquer
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      streamRef.current = stream  // Ne pas arrêter les tracks — l'iframe en a besoin
+      stream.getTracks().forEach((t) => t.stop())
       setPermState("granted")
     } catch (err) {
       const name = err instanceof Error ? err.name : ""
       if (name === "NotFoundError" || name === "DevicesNotFoundError") {
-        setPermState("granted") // Pas de caméra sur l'appareil → charger l'iframe quand même
+        setPermState("granted")
       } else {
         setPermState("denied")
       }
     }
   }
 
-  // Chargement initial
   if (permState === "checking") {
     return (
       <div className="flex h-full items-center justify-center bg-gray-900">
@@ -92,7 +72,6 @@ export function VideoRoom({ roomUrl, token, onLeave }: VideoRoomProps) {
     )
   }
 
-  // Demande de permissions
   if (permState === "prompt" || permState === "requesting") {
     return (
       <div className="flex h-full flex-col items-center justify-center bg-gray-900 px-6 text-center">
@@ -127,7 +106,6 @@ export function VideoRoom({ roomUrl, token, onLeave }: VideoRoomProps) {
     )
   }
 
-  // Permissions refusées
   if (permState === "denied") {
     return (
       <div className="flex h-full flex-col items-center justify-center bg-gray-900 px-6 text-center">
@@ -140,7 +118,7 @@ export function VideoRoom({ roomUrl, token, onLeave }: VideoRoomProps) {
           La caméra ou le microphone a été bloqué. Pour l&apos;activer :
         </p>
         <div className="mb-6 w-full max-w-xs rounded-2xl bg-white/5 p-5 text-left text-sm text-gray-300 space-y-2">
-          <p className="mb-2 font-semibold text-white">Sur Android (Chrome)</p>
+          <p className="mb-2 font-semibold text-white">Sur Android Chrome</p>
           <p>① Appuyez sur <strong className="text-white">ⓘ</strong> à gauche de l&apos;adresse</p>
           <p>② Appuyez sur <strong className="text-white">Autorisations du site</strong></p>
           <p>③ Activez <strong className="text-white">Caméra</strong> et <strong className="text-white">Microphone</strong></p>
@@ -162,7 +140,6 @@ export function VideoRoom({ roomUrl, token, onLeave }: VideoRoomProps) {
     )
   }
 
-  // Permissions accordées → charger l'iframe Daily.co (sans pré-join UI)
   return (
     <div className="relative flex h-full flex-col bg-gray-900">
       <iframe

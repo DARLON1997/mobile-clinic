@@ -13,6 +13,7 @@ const postSchema = z.object({
   ]).default(30),
   notes:       z.string().optional(),
   patientId:   z.string().cuid().optional(), // Call Center uniquement
+  instant:     z.boolean().optional(),       // Consultation instantanée : auto-approuvée
 })
 
 export async function GET(req: Request) {
@@ -171,15 +172,19 @@ export async function POST(req: Request) {
         return appt
       })
     } else {
+      const now = new Date()
       appointment = await prisma.appointment.create({
         data: {
           patientId,
-          doctorId:    data.doctorId,
+          doctorId:       data.doctorId,
           scheduledAt,
-          duration:    data.duration,
-          reason:      data.reason,
-          notes:       data.notes,
-          status:      "AWAITING_APPROVAL" as const,
+          duration:       data.duration,
+          reason:         data.reason,
+          notes:          data.notes,
+          // Consultation instantanée : approuvée automatiquement
+          status:         data.instant ? "CONFIRMED" as const : "AWAITING_APPROVAL" as const,
+          adminApprovedAt: data.instant ? now : null,
+          adminNote:      data.instant ? "Consultation instantanée — approuvée automatiquement" : null,
         },
       })
     }

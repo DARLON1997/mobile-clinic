@@ -24,7 +24,7 @@ export async function POST(req: Request) {
 
     // RÈGLE R1 : médecin → adminApprovedAt non null, obligatoirement en DB
     const whereDoctor  = { id: appointmentId, doctorId:  session.user.id, adminApprovedAt: { not: null } }
-    const wherePatient = { id: appointmentId, patientId: session.user.id, status: "CONFIRMED" as const }
+    const wherePatient = { id: appointmentId, patientId: session.user.id, status: { in: ["CONFIRMED", "IN_PROGRESS"] as const } }
 
     const appointment = await prisma.appointment.findFirst({
       where: role === "MEDECIN" ? whereDoctor : wherePatient,

@@ -54,12 +54,13 @@ export async function createVideoRoom(appointmentId: string, scheduledAt: Date):
       name: roomName,
       privacy: "private",
       properties: {
-        nbf:              notBefore,
-        exp:              expiresAt,
-        max_participants: 2,
-        enable_chat:      false,
+        nbf:               notBefore,
+        exp:               expiresAt,
+        max_participants:  2,
+        enable_chat:       false,
         enable_screenshare: false,
-        lang:             "fr",
+        lang:              "fr",
+        enable_prejoin_ui: false,
       },
     })
     room = { url: (created as DailyRoom).url, name: roomName }
@@ -74,6 +75,15 @@ export async function createVideoRoom(appointmentId: string, scheduledAt: Date):
   }
 
   return { ...room, expiresAt: new Date(expiresAt * 1000) }
+}
+
+/**
+ * Désactive le pré-join UI sur une salle existante (pour les salles déjà créées).
+ */
+export async function disablePrejoinUi(roomName: string) {
+  await dailyRequest(`/rooms/${roomName}`, "POST", {
+    properties: { enable_prejoin_ui: false },
+  })
 }
 
 /**

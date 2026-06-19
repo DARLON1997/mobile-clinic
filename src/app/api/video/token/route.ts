@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { createRoomToken, createVideoRoom } from "@/lib/daily"
+import { createRoomToken, createVideoRoom, disablePrejoinUi } from "@/lib/daily"
 import { z } from "zod"
 
 const schema = z.object({ appointmentId: z.string().cuid() })
@@ -111,6 +111,9 @@ export async function POST(req: Request) {
         },
       })
     }
+
+    // Désactiver le pré-join UI Daily.co (non-bloquant — salles existantes)
+    disablePrejoinUi(videoRoomName).catch(() => {})
 
     const tokenRole = role === "MEDECIN" ? "owner" : "attendee"
     const token = await createRoomToken(

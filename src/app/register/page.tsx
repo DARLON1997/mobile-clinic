@@ -23,9 +23,10 @@ type FormData = {
   city:             string
   emergencyContact: string
   // Étape 3 — Informations médicales
-  bloodType:      string
-  medicalHistory: string
-  allergies:      string
+  bloodType:         string
+  medicalHistory:    string
+  allergies:         string
+  referralCodeInput: string
 }
 
 const STEPS = [
@@ -60,7 +61,7 @@ export default function RegisterPage() {
     email: "", phone: "", password: "", confirmPassword: "",
     firstName: "", lastName: "", dateOfBirth: "", gender: "",
     address: "", city: "Brazzaville", emergencyContact: "",
-    bloodType: "", medicalHistory: "", allergies: "",
+    bloodType: "", medicalHistory: "", allergies: "", referralCodeInput: "",
   })
 
   function set(field: keyof FormData, value: string) {
@@ -108,19 +109,20 @@ export default function RegisterPage() {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email:            form.email,
-          phone:            form.phone,
-          password:         form.password,
-          firstName:        form.firstName,
-          lastName:         form.lastName,
-          dateOfBirth:      form.dateOfBirth,
-          gender:           form.gender,
-          address:          form.address,
-          city:             form.city,
-          emergencyContact: form.emergencyContact || undefined,
-          bloodType:        form.bloodType        || undefined,
-          medicalHistory:   form.medicalHistory   || undefined,
-          allergies:        form.allergies        || undefined,
+          email:             form.email,
+          phone:             form.phone,
+          password:          form.password,
+          firstName:         form.firstName,
+          lastName:          form.lastName,
+          dateOfBirth:       form.dateOfBirth,
+          gender:            form.gender,
+          address:           form.address,
+          city:              form.city,
+          emergencyContact:  form.emergencyContact    || undefined,
+          bloodType:         form.bloodType           || undefined,
+          medicalHistory:    form.medicalHistory      || undefined,
+          allergies:         form.allergies           || undefined,
+          referralCodeInput: form.referralCodeInput   || undefined,
         }),
       })
       const data = await res.json()
@@ -297,6 +299,12 @@ export default function RegisterPage() {
                     placeholder="Ex : Pénicilline, arachides..."
                     value={form.allergies} onChange={(e) => set("allergies", e.target.value)} />
                 </div>
+                <Input
+                  label="Code de parrainage (facultatif)"
+                  placeholder="Ex : MC-AB3XY2"
+                  value={form.referralCodeInput}
+                  onChange={(e) => set("referralCodeInput", e.target.value.toUpperCase())}
+                />
               </div>
             )}
 

@@ -13,7 +13,7 @@ import {
   Home, FileText, MapPin, LogOut, Menu, X,
   FlaskConical, Syringe, MessageCircle, Pill,
   ShoppingCart, Settings, TrendingUp, Store,
-  CalendarDays, BookUser,
+  CalendarDays, BookUser, Gift,
 } from "lucide-react"
 
 type NavItem = { href: string; label: string; icon: React.ElementType }
@@ -50,6 +50,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { href: "/patient/medical-record", label: "Dossier médical", icon: FileText },
     { href: "/patient/prescriptions",  label: "Ordonnances",     icon: BookOpen },
     { href: "/patient/pharmacie",      label: "Pharmacie",       icon: Pill },
+    { href: "/patient/parrainage",     label: "Parrainage",      icon: Gift },
   ],
   CALL_CENTER_AGENT: [
     { href: "/call-center",                  label: "Tableau de bord", icon: LayoutDashboard },

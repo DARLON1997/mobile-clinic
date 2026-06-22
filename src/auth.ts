@@ -5,6 +5,7 @@ import { z } from "zod"
 import type { Role } from "@prisma/client"
 import { checkLoginLimit } from "@/lib/rate-limit"
 import { authConfig } from "./auth.config"
+import { distributeReferralPoints } from "@/lib/distribute-referral-points"
 
 const otpSchema = z.object({
   email: z.string().email(),
@@ -76,6 +77,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { id: user.id },
           data:  { otpCode: null, otpExpiry: null, lastLoginAt: new Date() },
         })
+
+        // Parrainage : distribuer les points à la 1ère connexion (non-bloquant)
+        distributeReferralPoints(user.id).catch((err) => console.error("[REFERRAL]", err))
 
         // RÈGLE R3 : AuditLog en arrière-plan
         prisma.auditLog.create({

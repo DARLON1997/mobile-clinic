@@ -149,9 +149,22 @@ model User {
   ordonnancesCallCenter OrdonnancePharmacieRequest[]  @relation("CallCenterOrdonnances")
   avisPharmacies        AvisPharmacie[]               @relation("PatientAvis")
 
+  // Parrainage
+  referralCode    String?   @unique
+  referredById    String?
+  referredAt      DateTime?
+  firstLoginAt    DateTime?
+
+  referrer        User?     @relation("ReferralChain", fields: [referredById], references: [id])
+  referrals       User[]    @relation("ReferralChain")
+  pointsReceived  ReferralPointTransaction[] @relation("PointsBeneficiary")
+  pointsTriggered ReferralPointTransaction[] @relation("PointsTriggeredBy")
+
   @@index([email])
   @@index([phone])
   @@index([role])
+  @@index([referralCode])
+  @@index([referredById])
 }
 
 // ─────────────────────────────────────────────────
@@ -864,4 +877,24 @@ model AvisPharmacie {
 
   @@unique([patientId, pharmacieId, commandeId])
   @@index([pharmacieId])
+}
+
+// ─────────────────────────────────────────────────
+// MODULE PARRAINAGE
+// ─────────────────────────────────────────────────
+
+model ReferralPointTransaction {
+  id             String   @id @default(cuid())
+  beneficiaryId  String   // Parrain qui reçoit les points
+  triggeredById  String   // Patient dont la 1ère connexion a déclenché les points
+  level          Int      // 1 = parrain direct, 2 = parrain du parrain, etc.
+  pointsAwarded  Float    // 1, 0.5, 0.25, 0.125 ...
+  createdAt      DateTime @default(now())
+
+  beneficiary User @relation("PointsBeneficiary", fields: [beneficiaryId], references: [id])
+  triggeredBy User @relation("PointsTriggeredBy", fields: [triggeredById],  references: [id])
+
+  @@index([beneficiaryId])
+  @@index([triggeredById])
+  @@index([createdAt])
 }

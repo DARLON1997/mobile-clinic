@@ -6,6 +6,7 @@ import { sendEmail, emailTemplates } from "@/lib/mailer"
 import { sendSMS } from "@/lib/africas-talking"
 import { checkApiLimit } from "@/lib/rate-limit"
 import { logServerError } from "@/lib/error-logger"
+import { generateUniqueReferralCode } from "@/lib/referral"
 
 const schema = z.object({
   firstName:        z.string().min(2),
@@ -26,6 +27,7 @@ const schema = z.object({
   allergies:        z.string().optional(),
   medicalHistory:   z.string().optional(),
   emergencyContact: z.string().optional(),
+  referralCodeInput: z.string().optional(),
 })
 
 export async function POST(req: Request) {
@@ -50,7 +52,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Un compte avec ce numéro existe déjà." }, { status: 409 })
     }
 
+    // Résoudre le parrain si un code a été fourni (erreur silencieuse si code invalide)
+    let referrerId: string | null = null
+    if (data.referralCodeInput?.trim()) {
+      const referrer = await prisma.user.findUnique({
+        where:  { referralCode: data.referralCodeInput.trim().toUpperCase() },
+        select: { id: true },
+      }).catch(() => null)
+      referrerId = referrer?.id ?? null
+    }
+
     const passwordHash = await bcrypt.hash(data.password, 12)
+    const newReferralCode = await generateUniqueReferralCode(prisma)
 
     // RÈGLE R8 : transaction — User + PatientProfile + Notification
     const user = await prisma.$transaction(async (tx) => {
@@ -61,6 +74,8 @@ export async function POST(req: Request) {
           passwordHash,
           role:         "PATIENT",
           isVerified:   false,
+          referralCode: newReferralCode,
+          ...(referrerId ? { referredById: referrerId, referredAt: new Date() } : {}),
           patientProfile: {
             create: {
               firstName:        data.firstName,

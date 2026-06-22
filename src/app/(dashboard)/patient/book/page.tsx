@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { cn, formatXAF } from "@/lib/utils"
 import { FEATURES } from "@/lib/features"
+import { getPusherClient } from "@/lib/pusher-client"
 import {
   Video, Home, TestTube2, Building2, Zap, ArrowLeft, ArrowRight, Check, Clock, CreditCard, MapPin
 } from "lucide-react"
@@ -42,6 +43,8 @@ export default function BookPage() {
   const [loading,         setLoading]        = useState(false)
   const [error,           setError]          = useState("")
   const [done,            setDone]           = useState(false)
+  const [appointmentId,   setAppointmentId]  = useState<string | null>(null)
+  const [patientId,       setPatientId]      = useState<string | null>(null)
 
   async function loadDoctors() {
     if (doctorsLoaded) return
@@ -94,6 +97,8 @@ export default function BookPage() {
       const res  = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
+      if (json.data?.id)        setAppointmentId(json.data.id)
+      if (json.data?.patientId) setPatientId(json.data.patientId)
       setDone(true)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur lors de la création du rendez-vous.")
@@ -126,21 +131,51 @@ export default function BookPage() {
 
   const isWithDoctor = type === "VIDEO" || type === "PRESENTIEL" || type === "INSTANT"
 
+  // Listener Pusher : redirige le patient automatiquement dès approbation admin d'une demande instantanée
+  useEffect(() => {
+    if (!done || type !== "INSTANT" || !appointmentId || !patientId) return
+    const pusher = getPusherClient()
+    if (!pusher) return
+    const channel = pusher.subscribe(`private-patient-${patientId}`)
+    channel.bind("appointment-approved-instant", (data: { appointmentId: string }) => {
+      if (data.appointmentId === appointmentId) {
+        router.push("/patient/appointments")
+      }
+    })
+    return () => { pusher.unsubscribe(`private-patient-${patientId}`) }
+  }, [done, type, appointmentId, patientId, router])
+
+  if (done && type === "INSTANT") return (
+    <div className="mx-auto max-w-md py-12 text-center">
+      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 animate-pulse">
+        <Zap className="h-8 w-8 text-orange-500" />
+      </div>
+      <h1 className="text-xl font-bold text-gray-900">Recherche d&apos;un médecin disponible...</h1>
+      <p className="mt-2 text-sm text-gray-500">
+        Un administrateur valide votre demande. Vous serez redirigé automatiquement dès l&apos;approbation.
+      </p>
+      <div className="mt-5 flex items-center justify-center gap-1.5">
+        <span className="h-2 w-2 animate-bounce rounded-full bg-orange-400" style={{ animationDelay: "0ms" }} />
+        <span className="h-2 w-2 animate-bounce rounded-full bg-orange-400" style={{ animationDelay: "150ms" }} />
+        <span className="h-2 w-2 animate-bounce rounded-full bg-orange-400" style={{ animationDelay: "300ms" }} />
+      </div>
+      <Button onClick={() => router.push("/patient/appointments")} variant="ghost" className="mt-8 w-full text-sm text-gray-500">
+        Voir mes rendez-vous
+      </Button>
+    </div>
+  )
+
   if (done) return (
     <div className="mx-auto max-w-md py-12 text-center">
       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
         <Check className="h-8 w-8 text-green-600" />
       </div>
-      <h1 className="text-xl font-bold text-gray-900">
-        {type === "INSTANT" ? "Consultation créée !" : "Demande envoyée !"}
-      </h1>
+      <h1 className="text-xl font-bold text-gray-900">Demande envoyée !</h1>
       <p className="mt-2 text-sm text-gray-500">
-        {type === "INSTANT"
-          ? "Votre consultation démarrera dans environ 5 minutes. Rendez-vous dans \"Mes rendez-vous\" pour rejoindre la salle vidéo."
-          : "Votre demande est soumise à l'administrateur. Vous recevrez une notification dès l'approbation."}
+        Votre demande est soumise à l&apos;administrateur. Vous recevrez une notification dès l&apos;approbation.
       </p>
 
-      {type !== "INSTANT" && (FEATURES.PAYMENT_ENABLED ? (
+      {(FEATURES.PAYMENT_ENABLED ? (
         <>
           <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 p-4 text-left">
             <div className="flex items-start gap-2">
@@ -169,17 +204,6 @@ export default function BookPage() {
           </div>
         </div>
       ))}
-
-      {type === "INSTANT" && (
-        <div className="mt-4 rounded-xl border border-orange-200 bg-orange-50 p-4 text-left">
-          <div className="flex items-start gap-2">
-            <Zap className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
-            <p className="text-xs text-orange-700">
-              Le médecin a reçu une notification. Rejoignez la salle dans <strong>Mes rendez-vous</strong> dans quelques minutes.
-            </p>
-          </div>
-        </div>
-      )}
 
       <Button onClick={() => router.push("/patient/appointments")} className="mt-6 w-full" size="lg">
         Voir mes rendez-vous
@@ -410,7 +434,7 @@ export default function BookPage() {
               <div className="flex items-start gap-2 rounded-xl border border-orange-200 bg-orange-50 p-3">
                 <Zap className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
                 <p className="text-xs text-orange-700">
-                  La salle vidéo sera créée immédiatement. Le médecin recevra une notification. Rejoignez la salle dans <strong>Mes rendez-vous</strong>.
+                  Votre demande sera validée par un administrateur en quelques instants. Vous serez redirigé automatiquement dès l&apos;approbation.
                 </p>
               </div>
             ) : FEATURES.PAYMENT_ENABLED ? (

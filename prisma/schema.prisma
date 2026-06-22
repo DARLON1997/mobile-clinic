@@ -280,6 +280,7 @@ model Appointment {
   adminApprovedAt DateTime?
   adminApprovedBy String?           // ID de l'admin qui a approuvé
   adminNote       String?           // Note de refus ou d'approbation
+  isInstant       Boolean           @default(false) // Demande instantanée — priorité absolue pour l'admin
   videoRoomUrl    String?           // URL salle Daily.co
   videoRoomName   String?           // Nom salle Daily.co
   reason          String            // Motif de consultation

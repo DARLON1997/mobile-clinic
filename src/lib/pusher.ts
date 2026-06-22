@@ -100,7 +100,7 @@ export async function triggerCallCenterOrdonnance(payload: object) {
 
 export async function triggerPatientNotification(
   patientId: string,
-  event: "ordonnance-processed" | "commande-status" | "medicament-found",
+  event: "ordonnance-processed" | "commande-status" | "medicament-found" | "appointment-approved-instant",
   payload: object
 ) {
   await pusherServer.trigger(patientChannel(patientId), event, payload)

@@ -181,28 +181,31 @@ export async function POST(req: Request) {
         return appt
       })
     } else {
-      const now = new Date()
+      // RÈGLE R1 : toute demande patient (y compris instantanée) doit passer par l'admin
       appointment = await prisma.appointment.create({
         data: {
           patientId,
-          doctorId:       data.doctorId,
+          doctorId:  data.doctorId,
           scheduledAt,
-          duration:       data.duration,
-          reason:         data.reason,
-          notes:          data.notes,
-          // Consultation instantanée : approuvée automatiquement
-          status:         data.instant ? "CONFIRMED" as const : "AWAITING_APPROVAL" as const,
-          adminApprovedAt: data.instant ? now : null,
-          adminNote:      data.instant ? "Consultation instantanée — approuvée automatiquement" : null,
+          duration:  data.duration,
+          reason:    data.reason,
+          notes:     data.notes,
+          status:    "AWAITING_APPROVAL" as const,
+          isInstant: data.instant ?? false,
         },
       })
     }
 
-    // Notifier Admin/Call Center via Pusher (non bloquant)
-    triggerAdminNotification("new-appointment", {
+    // Pour une demande instantanée : notifier l'admin via l'event d'approbation urgent
+    // Pour une demande classique patient : notifier via new-appointment
+    const pusherEvent = data.instant
+      ? "new-approval-request"
+      : "new-appointment"
+    triggerAdminNotification(pusherEvent, {
       appointmentId: appointment.id,
       patientId,
-      doctorId: data.doctorId,
+      doctorId:  data.doctorId,
+      isInstant: data.instant ?? false,
     }).catch(console.error)
 
     return NextResponse.json({ success: true, data: appointment }, { status: 201 })

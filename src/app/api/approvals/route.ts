@@ -5,7 +5,7 @@ import { z } from "zod"
 import { sendSMS, smsTemplates } from "@/lib/africas-talking"
 import { sendEmail, emailTemplates } from "@/lib/mailer"
 import { createVideoRoom } from "@/lib/daily"
-import { triggerAdminNotification } from "@/lib/pusher"
+import { triggerAdminNotification, triggerPatientNotification } from "@/lib/pusher"
 import { formatDateFR, formatXAF } from "@/lib/utils"
 import { FEATURES } from "@/lib/features"
 
@@ -43,7 +43,7 @@ export async function GET() {
         },
       },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ isInstant: "desc" }, { createdAt: "asc" }],
   })
 
   return NextResponse.json({ success: true, data: pending })
@@ -260,6 +260,15 @@ export async function POST(req: Request) {
       }
 
       triggerAdminNotification("appointment-approved", { appointmentId }).catch(console.error)
+
+      // Notifier le patient en temps réel si consultation instantanée
+      // → il sera redirigé automatiquement sans avoir à rafraîchir
+      if (appointment.isInstant) {
+        triggerPatientNotification(appointment.patientId, "appointment-approved-instant", {
+          appointmentId,
+          status: updated.status,
+        }).catch(console.error)
+      }
 
       return NextResponse.json({ success: true, data: updated })
     }

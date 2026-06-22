@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { AppointmentStatusBadge } from "@/components/shared/StatusBadge"
 import { formatDateFR } from "@/lib/utils"
-import { ShieldCheck, X, Check, AlertCircle } from "lucide-react"
+import { ShieldCheck, X, Check, AlertCircle, Zap } from "lucide-react"
 
 type ApptRow = {
-  id: string; scheduledAt: string; reason: string; status: string
+  id: string; scheduledAt: string; reason: string; status: string; isInstant: boolean
   patient: { phone: string; patientProfile: { firstName: string; lastName: string } | null }
   doctor:  { email: string; doctorProfile: { firstName: string; lastName: string; speciality: string } | null }
 }
@@ -30,7 +30,11 @@ export default function ApprovalsPage() {
     const params = filter !== "ALL" ? `?status=${filter}` : ""
     const res  = await fetch(`/api/appointments${params}`)
     const json = await res.json()
-    setRows(json.data ?? [])
+    // Demandes instantanées en tête de liste
+    const sorted = [...(json.data ?? [])].sort(
+      (a: ApptRow, b: ApptRow) => (b.isInstant ? 1 : 0) - (a.isInstant ? 1 : 0)
+    )
+    setRows(sorted)
     setLoading(false)
   }, [filter])
 
@@ -124,10 +128,20 @@ export default function ApprovalsPage() {
                   ? `Dr ${appt.doctor.doctorProfile.firstName} ${appt.doctor.doctorProfile.lastName}`
                   : appt.doctor.email
                 return (
-                  <tr key={appt.id} className="hover:bg-gray-50">
+                  <tr key={appt.id} className={`hover:bg-gray-50 ${appt.isInstant ? "bg-orange-50/60" : ""}`}>
                     <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900">{patientName}</p>
-                      <p className="text-xs text-gray-400">{appt.patient.phone}</p>
+                      <div className="flex items-center gap-2">
+                        {appt.isInstant && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-700 ring-1 ring-orange-300">
+                            <Zap className="h-3 w-3" />
+                            URGENT
+                          </span>
+                        )}
+                        <div>
+                          <p className="font-medium text-gray-900">{patientName}</p>
+                          <p className="text-xs text-gray-400">{appt.patient.phone}</p>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <p className="text-gray-700">{doctorName}</p>

@@ -4,7 +4,7 @@ import { prisma }    from "@/lib/prisma"
 import Link          from "next/link"
 import {
   CalendarDays, Clock, Home, AlertCircle, ChevronRight,
-  MessageCircle, BookUser, TrendingUp,
+  MessageCircle, BookUser, TrendingUp, Stethoscope, Phone,
 } from "lucide-react"
 
 const WEEKDAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
@@ -34,7 +34,7 @@ export default async function CallCenterDashboard() {
   const weekEnd   = new Date(weekStart)
   weekEnd.setDate(weekStart.getDate() + 7)
 
-  const [todayCount, pendingCount, homeVisitCount, openChatsCount, weekAppointments, alerts, recentChats] = await Promise.all([
+  const [todayCount, pendingCount, homeVisitCount, openChatsCount, weekAppointments, alerts, recentChats, presentielAlertes] = await Promise.all([
     prisma.appointment.count({
       where: { scheduledAt: { gte: today, lt: tomorrow } },
     }),
@@ -76,6 +76,21 @@ export default async function CallCenterDashboard() {
           take: 1,
           orderBy: { createdAt: "desc" },
           select: { content: true },
+        },
+      },
+    }),
+    prisma.consultation.findMany({
+      where: { presentielRecommande: { not: null }, presentielTraiteAt: null },
+      orderBy: { presentielNotifieAt: "asc" },
+      take: 10,
+      select: {
+        id: true, presentielRecommande: true, presentielMotif: true, presentielNotifieAt: true,
+        appointment: {
+          select: {
+            id: true, scheduledAt: true,
+            patient: { select: { phone: true, patientProfile: { select: { firstName: true, lastName: true } } } },
+            doctor:  { select: { doctorProfile: { select: { firstName: true, lastName: true } } } },
+          },
         },
       },
     }),
@@ -248,6 +263,58 @@ export default async function CallCenterDashboard() {
           )}
         </div>
       </div>
+
+      {/* Alertes présentiel recommandé par les médecins */}
+      {presentielAlertes.length > 0 && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Stethoscope className="h-4 w-4 text-red-600" />
+            <h2 className="text-sm font-semibold text-red-800">
+              {presentielAlertes.length} alerte{presentielAlertes.length > 1 ? "s" : ""} de consultation présentielle
+            </h2>
+          </div>
+          <div className="space-y-2">
+            {presentielAlertes.map((c) => {
+              const pp = c.appointment.patient.patientProfile
+              const patientName = pp ? `${pp.firstName} ${pp.lastName}` : "Patient"
+              const dp = c.appointment.doctor.doctorProfile
+              const doctorName = dp ? `Dr ${dp.firstName} ${dp.lastName}` : "Médecin"
+              const urgenceColor =
+                c.presentielRecommande === "URGENT"      ? "bg-red-100 text-red-700" :
+                c.presentielRecommande === "OBLIGATOIRE" ? "bg-orange-100 text-orange-700" :
+                "bg-gray-100 text-gray-700"
+              return (
+                <div key={c.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg bg-white px-3 py-3 shadow-sm">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-gray-900">{patientName}</p>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${urgenceColor}`}>
+                        {c.presentielRecommande}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">{doctorName} · {c.presentielMotif}</p>
+                    {c.presentielNotifieAt && (
+                      <p className="text-xs text-gray-400">
+                        Signalé le {new Date(c.presentielNotifieAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <a href={`tel:${c.appointment.patient.phone}`}
+                      className="flex items-center gap-1 rounded-lg bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-200 transition-colors">
+                      <Phone className="h-3.5 w-3.5" /> Appeler
+                    </a>
+                    <Link href="/call-center/appointments"
+                      className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 transition-colors">
+                      Créer RDV présentiel
+                    </Link>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Alertes RDV en attente */}
       {alerts.length > 0 && (

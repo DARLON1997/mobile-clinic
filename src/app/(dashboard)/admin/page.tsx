@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { NotificationBell } from "@/components/notifications/NotificationBell"
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { formatDateFR, formatXAF } from "@/lib/utils"
-import { Users, CalendarCheck, ShieldCheck, TrendingUp } from "lucide-react"
+import { Users, CalendarCheck, ShieldCheck, TrendingUp, Stethoscope } from "lucide-react"
 
 export default async function AdminDashboard() {
   const session = await auth()
@@ -19,7 +19,7 @@ export default async function AdminDashboard() {
   tomorrow.setDate(today.getDate() + 1)
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
 
-  const [consultToday, revenusMonth, medecinActifs, patientsTotal, pendingApprovals, recentAudit] =
+  const [consultToday, revenusMonth, medecinActifs, patientsTotal, pendingApprovals, recentAudit, presentielAlertes] =
     await Promise.all([
       prisma.appointment.count({ where: { scheduledAt: { gte: today, lt: tomorrow }, status: "CONFIRMED" } }),
       prisma.payment.aggregate({ where: { status: "PAID", createdAt: { gte: firstOfMonth } }, _sum: { amount: true } }),
@@ -37,6 +37,20 @@ export default async function AdminDashboard() {
       prisma.auditLog.findMany({
         take: 5, orderBy: { createdAt: "desc" },
         include: { user: { select: { email: true, role: true } } },
+      }),
+      prisma.consultation.findMany({
+        where: { presentielRecommande: { not: null }, presentielTraiteAt: null },
+        orderBy: { presentielNotifieAt: "asc" },
+        take: 5,
+        select: {
+          id: true, presentielRecommande: true, presentielMotif: true,
+          appointment: {
+            select: {
+              patient: { select: { patientProfile: { select: { firstName: true, lastName: true } } } },
+              doctor:  { select: { doctorProfile:  { select: { firstName: true, lastName: true } } } },
+            },
+          },
+        },
       }),
     ])
 
@@ -72,6 +86,48 @@ export default async function AdminDashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Alertes présentiel */}
+      {presentielAlertes.length > 0 && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Stethoscope className="h-4 w-4 text-red-600" />
+              <h2 className="text-sm font-semibold text-red-800">
+                {presentielAlertes.length} alerte{presentielAlertes.length > 1 ? "s" : ""} présentiel non traité{presentielAlertes.length > 1 ? "es" : "e"}
+              </h2>
+            </div>
+            <span className="text-xs text-gray-400">Le Call Center prend en charge</span>
+          </div>
+          <div className="space-y-2">
+            {presentielAlertes.map((c) => {
+              const pp = c.appointment.patient.patientProfile
+              const dp = c.appointment.doctor.doctorProfile
+              const urgenceColor =
+                c.presentielRecommande === "URGENT"      ? "bg-red-100 text-red-700" :
+                c.presentielRecommande === "OBLIGATOIRE" ? "bg-orange-100 text-orange-700" :
+                "bg-gray-100 text-gray-700"
+              return (
+                <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-gray-900">
+                        {pp ? `${pp.firstName} ${pp.lastName}` : "Patient"}
+                      </p>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${urgenceColor}`}>
+                        {c.presentielRecommande}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {dp ? `Dr ${dp.firstName} ${dp.lastName}` : "Médecin"} · {c.presentielMotif}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Autorisations en attente */}

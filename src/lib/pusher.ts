@@ -48,7 +48,7 @@ export async function triggerMissionUpdate(
 }
 
 export async function triggerAdminNotification(
-  event: "new-approval-request" | "payment-received" | "new-appointment" | "appointment-approved",
+  event: "new-approval-request" | "payment-received" | "new-appointment" | "appointment-approved" | "presentiel-alerte",
   payload: object
 ) {
   await pusherServer.trigger(ADMIN_CHANNEL, event, payload)
@@ -98,9 +98,13 @@ export async function triggerCallCenterOrdonnance(payload: object) {
   await pusherServer.trigger(CALL_CENTER_INBOX_CHANNEL, "new-ordonnance-request", payload)
 }
 
+export async function triggerCallCenterPresentiel(payload: object) {
+  await pusherServer.trigger(CALL_CENTER_INBOX_CHANNEL, "presentiel-alerte", payload)
+}
+
 export async function triggerPatientNotification(
   patientId: string,
-  event: "ordonnance-processed" | "commande-status" | "medicament-found" | "appointment-approved-instant",
+  event: "ordonnance-processed" | "commande-status" | "medicament-found" | "appointment-approved-instant" | "ordonnance-photo-envoyee",
   payload: object
 ) {
   await pusherServer.trigger(patientChannel(patientId), event, payload)

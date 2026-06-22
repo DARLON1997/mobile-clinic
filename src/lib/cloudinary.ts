@@ -12,7 +12,7 @@ cloudinary.config({
   secure:     true,
 })
 
-type Folder = "prescriptions" | "mission-photos" | "avatars" | "reports"
+type Folder = "prescriptions" | "mission-photos" | "avatars" | "reports" | "ordonnances"
 
 /**
  * Upload un fichier Buffer vers Cloudinary.
@@ -26,6 +26,7 @@ export async function uploadFile(
     folder:        `mobile-clinic/${folder}`,
     public_id:     publicId,
     resource_type: folder === "prescriptions" || folder === "reports" ? "raw" : "image",
+    // ordonnances = toujours image (photo prise par le médecin)
   }
 
   return new Promise((resolve, reject) => {

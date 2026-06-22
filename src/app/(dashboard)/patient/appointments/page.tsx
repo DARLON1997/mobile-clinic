@@ -32,7 +32,7 @@ export default async function PatientAppointmentsPage({ searchParams }: SearchPa
       doctor:  { select: { id: true, email: true,
         doctorProfile: { select: { firstName: true, lastName: true, speciality: true, consultationFee: true } } } },
       payment:      { select: { status: true, amount: true } },
-      consultation: { select: { id: true, diagnosis: true, prescriptionUrl: true } },
+      consultation: { select: { id: true, diagnosis: true, prescriptionUrl: true, ordonnancePhotoUrl: true } },
     },
     orderBy: { scheduledAt: "desc" },
   }) as unknown as AppointmentWithRelations[]
@@ -157,7 +157,16 @@ export default async function PatientAppointmentsPage({ searchParams }: SearchPa
                       <a href={appt.consultation.prescriptionUrl} target="_blank" rel="noreferrer">
                         <Button size="sm" variant="outline" className="text-xs h-8">
                           <FileText className="h-3.5 w-3.5" />
-                          Ordonnance
+                          Ordonnance PDF
+                        </Button>
+                      </a>
+                    )}
+                    {appt.status === "COMPLETED" && (appt.consultation as { ordonnancePhotoUrl?: string | null } | null)?.ordonnancePhotoUrl && (
+                      <a href={(appt.consultation as { ordonnancePhotoUrl?: string | null })!.ordonnancePhotoUrl!}
+                        target="_blank" rel="noreferrer" download>
+                        <Button size="sm" variant="outline" className="text-xs h-8">
+                          <FileText className="h-3.5 w-3.5" />
+                          📷 Ordonnance photo
                         </Button>
                       </a>
                     )}

@@ -26,6 +26,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { href: "/admin/doctors",        label: "Médecins",         icon: Video },
     { href: "/admin/users",          label: "Utilisateurs",     icon: Users },
     { href: "/admin/lab-exams",      label: "Examens labo",     icon: FlaskConical },
+    { href: "/admin/examens",         label: "Examens prescrits",icon: FlaskConical },
     { href: "/admin/nursing-cares",  label: "Soins infirmiers", icon: Syringe },
     { href: "/admin/elderly-cares",  label: "Soins seniors",    icon: Users },
     { href: "/admin/pharmacies",     label: "Pharmacies",       icon: Store },

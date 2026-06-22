@@ -44,6 +44,18 @@ enum PresentielStatus {
   ABSENT
 }
 
+enum PresentielUrgence {
+  EVENTUEL
+  OBLIGATOIRE
+  URGENT
+}
+
+enum ExamenPrescritStatut {
+  EN_ATTENTE
+  EFFECTUE
+  RESULTATS_RECUS
+}
+
 enum PaymentStatus {
   PENDING
   PAID
@@ -159,6 +171,11 @@ model User {
   referrals       User[]    @relation("ReferralChain")
   pointsReceived  ReferralPointTransaction[] @relation("PointsBeneficiary")
   pointsTriggered ReferralPointTransaction[] @relation("PointsTriggeredBy")
+
+  // Examens prescrits
+  examensAsPatient ExamenPrescrit[] @relation("ExamenPatient")
+  examensAsDoctor  ExamenPrescrit[] @relation("ExamenDoctor")
+  presentielTraite Consultation[]   @relation("PresentielTraitePar")
 
   @@index([email])
   @@index([phone])
@@ -319,15 +336,57 @@ model Appointment {
 model Consultation {
   id              String    @id @default(cuid())
   appointmentId   String    @unique
-  clinicalNotes   String?   // Notes médicales du médecin
-  diagnosis       String?   // Diagnostic posé
-  prescriptionUrl String?   // URL PDF ordonnance sur Cloudinary
-  followUpDate    DateTime? // Date de suivi recommandée
-  duration        Int?      // Durée réelle de la consultation (min)
+  clinicalNotes   String?
+  diagnosis       String?
+  prescriptionUrl String?
+  followUpDate    DateTime?
+  duration        Int?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  appointment Appointment @relation(fields: [appointmentId], references: [id])
+  // ── Dossier enrichi ──────────────────────────────
+  signesSubjectifs     String?           // Plaintes rapportées par le patient
+  hypothesesDiagnostic String?           // Pistes diagnostiques du médecin
+  prescriptionTexte    String?           // Prescription texte libre
+
+  // Alerte présentiel
+  presentielRecommande  PresentielUrgence?
+  presentielMotif        String?
+  presentielNotifieAt    DateTime?
+  presentielTraiteParId  String?
+  presentielTraiteAt     DateTime?
+
+  // Ordonnance photo
+  ordonnancePhotoUrl  String?
+  ordonnanceEnvoyeeAt DateTime?
+
+  appointment       Appointment   @relation(fields: [appointmentId], references: [id])
+  examens           ExamenPrescrit[]
+  presentielTraitePar User?       @relation("PresentielTraitePar", fields: [presentielTraiteParId], references: [id])
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Examen prescrit (visibilité restreinte)
+// ─────────────────────────────────────────────────
+model ExamenPrescrit {
+  id             String               @id @default(cuid())
+  consultationId String
+  patientId      String
+  doctorId       String
+  typeExamen     String
+  instructions   String?
+  statut         ExamenPrescritStatut @default(EN_ATTENTE)
+  resultatNote   String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  consultation Consultation @relation(fields: [consultationId], references: [id])
+  patient      User         @relation("ExamenPatient", fields: [patientId], references: [id])
+  doctor       User         @relation("ExamenDoctor",  fields: [doctorId],  references: [id])
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([consultationId])
 }
 
 // ─────────────────────────────────────────────────

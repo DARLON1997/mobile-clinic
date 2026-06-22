@@ -1,19 +1,13 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { v2 as cloudinary } from "cloudinary"
+import { uploadFile } from "@/lib/cloudinary"
 import { triggerPatientNotification } from "@/lib/pusher"
 import { logServerError } from "@/lib/error-logger"
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key:    process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure:     true,
-})
-
-// GET — génère une signature pour que le navigateur uploade directement vers Cloudinary
-export async function GET(req: Request) {
+// POST — reçoit l'image en binaire brut (Content-Type: image/jpeg)
+// appointmentId passé en query param pour éviter tout parsing multipart
+export async function POST(req: Request) {
   const session = await auth()
   if (session?.user.role !== "MEDECIN") {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 })
@@ -25,57 +19,24 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "appointmentId requis." }, { status: 400 })
   }
 
-  // R1 : vérifier approbation admin
-  const appt = await prisma.appointment.findUnique({
-    where: { id: appointmentId, doctorId: session.user.id, adminApprovedAt: { not: null } },
-    select: { id: true },
-  })
-  if (!appt) return NextResponse.json({ error: "Accès refusé." }, { status: 403 })
-
-  const timestamp = Math.round(Date.now() / 1000)
-  const folder    = "mobile-clinic/ordonnances"
-  const publicId  = `ordonnance-${appointmentId}`
-
-  const paramsToSign = { folder, public_id: publicId, timestamp }
-  const signature = cloudinary.utils.api_sign_request(
-    paramsToSign,
-    process.env.CLOUDINARY_API_SECRET!
-  )
-
-  return NextResponse.json({
-    signature,
-    timestamp,
-    apiKey:    process.env.CLOUDINARY_API_KEY!,
-    cloudName: process.env.CLOUDINARY_CLOUD_NAME!,
-    folder,
-    publicId,
-  })
-}
-
-// POST — enregistre l'URL après upload direct + notifie le patient
-export async function POST(req: Request) {
-  const session = await auth()
-  if (session?.user.role !== "MEDECIN") {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 })
-  }
-
   try {
-    const body = await req.json() as { appointmentId?: string; url?: string }
-    const { appointmentId, url } = body
-
-    if (!appointmentId || !url) {
-      return NextResponse.json({ error: "appointmentId et url requis." }, { status: 400 })
-    }
-    if (!url.includes("cloudinary.com")) {
-      return NextResponse.json({ error: "URL invalide." }, { status: 400 })
-    }
-
-    // R1
+    // R1 : vérifier approbation admin
     const appt = await prisma.appointment.findUnique({
       where: { id: appointmentId, doctorId: session.user.id, adminApprovedAt: { not: null } },
       select: { id: true, patientId: true },
     })
     if (!appt) return NextResponse.json({ error: "Accès refusé." }, { status: 403 })
+
+    // Lire le corps binaire directement (pas de FormData → pas de parsing instable)
+    const buffer = Buffer.from(await req.arrayBuffer())
+    if (buffer.length === 0) {
+      return NextResponse.json({ error: "Image vide reçue." }, { status: 400 })
+    }
+    if (buffer.length > 4 * 1024 * 1024) {
+      return NextResponse.json({ error: "Image trop volumineuse (4 Mo max)." }, { status: 413 })
+    }
+
+    const { url } = await uploadFile(buffer, "ordonnances", `ordonnance-${appointmentId}`)
 
     const now = new Date()
     const consultation = await prisma.consultation.upsert({
@@ -110,7 +71,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, url })
   } catch (err) {
-    logServerError("ORDONNANCE_PHOTO_SAVE", err)
+    logServerError("ORDONNANCE_PHOTO", err)
     return NextResponse.json({ error: "Erreur serveur." }, { status: 500 })
   }
 }

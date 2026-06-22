@@ -171,6 +171,30 @@ export default function ConsultationPage() {
     }
   }
 
+  function compressImage(file: File): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const objUrl = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(objUrl)
+        const MAX = 1600
+        let { width, height } = img
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round(height * MAX / width); width = MAX }
+          else { width = Math.round(width * MAX / height); height = MAX }
+        }
+        const canvas = document.createElement("canvas")
+        canvas.width = width; canvas.height = height
+        const ctx = canvas.getContext("2d")
+        if (!ctx) { reject(new Error("Canvas non supporté")); return }
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Compression échouée")), "image/jpeg", 0.82)
+      }
+      img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error("Image invalide")) }
+      img.src = objUrl
+    })
+  }
+
   function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -184,60 +208,27 @@ export default function ConsultationPage() {
     if (!photoFile) return
     setPhotoUploading(true)
     setPhotoError(null)
-    setPhotoProgress(10)
+    setPhotoProgress(15)
 
     try {
-      // Étape 1 : récupérer la signature Cloudinary (R1 vérifié côté serveur)
-      const sigRes = await fetch(`/api/consultations/ordonnance-photo?appointmentId=${id}`)
-      if (!sigRes.ok) {
-        const j = await sigRes.json().catch(() => ({})) as { error?: string }
-        throw new Error(j.error ?? "Impossible de préparer l'envoi.")
-      }
-      const { signature, timestamp, apiKey, cloudName, folder, publicId } =
-        await sigRes.json() as {
-          signature: string; timestamp: number; apiKey: string
-          cloudName: string; folder: string; publicId: string
-        }
+      // Compression canvas : max 1600px, JPEG 82% → ~200-400 Ko (évite timeout réseau)
+      const compressed = await compressImage(photoFile)
+      setPhotoProgress(45)
 
-      setPhotoProgress(30)
-
-      // Étape 2 : upload direct navigateur → Cloudinary (pas de transit serveur)
-      const fd = new FormData()
-      fd.append("file", photoFile)
-      fd.append("api_key", apiKey)
-      fd.append("timestamp", String(timestamp))
-      fd.append("signature", signature)
-      fd.append("folder", folder)
-      fd.append("public_id", publicId)
-
-      const cloudRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        { method: "POST", body: fd }
+      // Upload binaire brut vers notre serveur (pas de FormData, pas de CORS Cloudinary)
+      const res = await fetch(
+        `/api/consultations/ordonnance-photo?appointmentId=${id}`,
+        { method: "POST", headers: { "Content-Type": "image/jpeg" }, body: compressed }
       )
 
-      setPhotoProgress(80)
+      setPhotoProgress(90)
 
-      if (!cloudRes.ok) {
-        throw new Error("Échec de l'envoi de l'image. Vérifiez votre connexion.")
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(j.error ?? "Erreur d'envoi.")
       }
-      const cloudJson = await cloudRes.json() as { secure_url?: string }
-      const url = cloudJson.secure_url
-      if (!url) throw new Error("URL de l'image non reçue de Cloudinary.")
-
-      // Étape 3 : enregistrer en base + notifier le patient
-      const saveRes = await fetch("/api/consultations/ordonnance-photo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ appointmentId: id, url }),
-      })
 
       setPhotoProgress(100)
-
-      if (!saveRes.ok) {
-        const j = await saveRes.json().catch(() => ({})) as { error?: string }
-        throw new Error(j.error ?? "Image envoyée mais erreur de sauvegarde.")
-      }
-
       setPhotoSent(true)
     } catch (err) {
       setPhotoError(err instanceof Error ? err.message : "Erreur d'envoi. Réessayez.")

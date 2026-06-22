@@ -443,52 +443,64 @@ export default function ConsultationPage() {
 
             {/* ── Onglet Ordonnance Photo ── */}
             {tab === "ordonnance" && (
-              <div className="space-y-3">
+              <div className="flex flex-col gap-3">
                 <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
                   className="hidden" onChange={onPhotoChange}
                 />
 
-                {photoPreview ? (
-                  <div className="relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={photoPreview} alt="Aperçu ordonnance"
-                      className="w-full rounded-xl border border-gray-200 object-contain" style={{ maxHeight: 200 }} />
+                {photoSent ? (
+                  /* ── Confirmation envoi ── */
+                  <div className="flex flex-col items-center gap-3 py-6 text-center">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+                      <CheckCircle2 className="h-8 w-8 text-green-600" />
+                    </div>
+                    <p className="font-semibold text-gray-800">Ordonnance envoyée !</p>
+                    <p className="text-xs text-gray-400">Le patient la reçoit dans "Mes ordonnances".</p>
                     <button onClick={() => { setPhotoPreview(null); setPhotoFile(null); setPhotoSent(false) }}
-                      className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-white">
-                      <X className="h-3.5 w-3.5" />
+                      className="mt-1 text-xs text-blue-500 underline">
+                      Envoyer une autre photo
                     </button>
                   </div>
-                ) : (
-                  <button onClick={() => fileInputRef.current?.click()}
-                    className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-gray-200 py-8 text-gray-400 hover:border-blue-300 hover:text-blue-500 transition-colors">
-                    <Camera className="h-8 w-8" />
-                    <span className="text-sm font-medium">Prendre une photo ou importer</span>
-                    <span className="text-xs">JPEG / PNG – 5 Mo max</span>
-                  </button>
-                )}
+                ) : photoPreview ? (
+                  /* ── Aperçu + envoi ── */
+                  <div className="flex flex-col gap-3">
+                    <div className="relative cursor-pointer rounded-xl overflow-hidden" onClick={() => fileInputRef.current?.click()}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photoPreview} alt="Aperçu ordonnance"
+                        className="w-full object-contain rounded-xl border border-gray-200" style={{ maxHeight: 220 }} />
+                      {/* Overlay "Changer" */}
+                      <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/40 to-transparent pb-2">
+                        <span className="rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white">Toucher pour changer</span>
+                      </div>
+                      {photoUploading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        </div>
+                      )}
+                    </div>
 
-                {photoProgress > 0 && (
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-                    <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${photoProgress}%` }} />
+                    {photoProgress > 0 && photoProgress < 100 && (
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                        <div className="h-full rounded-full bg-blue-500 transition-all duration-300" style={{ width: `${photoProgress}%` }} />
+                      </div>
+                    )}
+
+                    <Button className="w-full py-3 text-sm font-bold" onClick={uploadOrdonnance}
+                      loading={photoUploading} disabled={photoUploading}>
+                      📤 Envoyer l'ordonnance au patient
+                    </Button>
                   </div>
-                )}
-
-                {photoSent ? (
-                  <div className="flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Ordonnance envoyée au patient
-                  </div>
                 ) : (
-                  <Button className="w-full" onClick={uploadOrdonnance}
-                    loading={photoUploading} disabled={!photoFile || photoUploading}>
-                    Envoyer l'ordonnance au patient
-                  </Button>
-                )}
-
-                {photoPreview && !photoSent && (
+                  /* ── Zone de capture ── */
                   <button onClick={() => fileInputRef.current?.click()}
-                    className="w-full text-center text-xs text-blue-500 underline">
-                    Changer la photo
+                    className="flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/30 py-10 transition-colors hover:border-blue-400 hover:bg-blue-50/60 active:scale-[0.98]">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100">
+                      <Camera className="h-7 w-7 text-blue-600" />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-semibold text-blue-700">📷 Photographier l'ordonnance</p>
+                      <p className="mt-0.5 text-xs text-gray-400">ou importer depuis la galerie</p>
+                    </div>
                   </button>
                 )}
               </div>

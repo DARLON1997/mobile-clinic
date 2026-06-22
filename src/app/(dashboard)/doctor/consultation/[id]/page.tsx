@@ -73,11 +73,12 @@ export default function ConsultationPage() {
   const [examenLoading, setExamenLoading] = useState(false)
 
   // Ordonnance photo
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-  const [photoFile,    setPhotoFile]    = useState<File | null>(null)
+  const [photoPreview,   setPhotoPreview]   = useState<string | null>(null)
+  const [photoFile,      setPhotoFile]      = useState<File | null>(null)
   const [photoUploading, setPhotoUploading] = useState(false)
-  const [photoSent,    setPhotoSent]   = useState(false)
-  const [photoProgress, setPhotoProgress] = useState(0)
+  const [photoSent,      setPhotoSent]      = useState(false)
+  const [photoProgress,  setPhotoProgress]  = useState(0)
+  const [photoError,     setPhotoError]     = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Auto-save ref
@@ -176,20 +177,70 @@ export default function ConsultationPage() {
     setPhotoFile(file)
     setPhotoPreview(URL.createObjectURL(file))
     setPhotoSent(false)
+    setPhotoError(null)
   }
 
   async function uploadOrdonnance() {
     if (!photoFile) return
     setPhotoUploading(true)
-    setPhotoProgress(20)
+    setPhotoError(null)
+    setPhotoProgress(10)
+
     try {
+      // Étape 1 : récupérer la signature Cloudinary (R1 vérifié côté serveur)
+      const sigRes = await fetch(`/api/consultations/ordonnance-photo?appointmentId=${id}`)
+      if (!sigRes.ok) {
+        const j = await sigRes.json().catch(() => ({})) as { error?: string }
+        throw new Error(j.error ?? "Impossible de préparer l'envoi.")
+      }
+      const { signature, timestamp, apiKey, cloudName, folder, publicId } =
+        await sigRes.json() as {
+          signature: string; timestamp: number; apiKey: string
+          cloudName: string; folder: string; publicId: string
+        }
+
+      setPhotoProgress(30)
+
+      // Étape 2 : upload direct navigateur → Cloudinary (pas de transit serveur)
       const fd = new FormData()
       fd.append("file", photoFile)
-      fd.append("appointmentId", id)
-      setPhotoProgress(60)
-      const res = await fetch("/api/consultations/ordonnance-photo", { method: "POST", body: fd })
+      fd.append("api_key", apiKey)
+      fd.append("timestamp", String(timestamp))
+      fd.append("signature", signature)
+      fd.append("folder", folder)
+      fd.append("public_id", publicId)
+
+      const cloudRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        { method: "POST", body: fd }
+      )
+
+      setPhotoProgress(80)
+
+      if (!cloudRes.ok) {
+        throw new Error("Échec de l'envoi de l'image. Vérifiez votre connexion.")
+      }
+      const cloudJson = await cloudRes.json() as { secure_url?: string }
+      const url = cloudJson.secure_url
+      if (!url) throw new Error("URL de l'image non reçue de Cloudinary.")
+
+      // Étape 3 : enregistrer en base + notifier le patient
+      const saveRes = await fetch("/api/consultations/ordonnance-photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appointmentId: id, url }),
+      })
+
       setPhotoProgress(100)
-      if (res.ok) { setPhotoSent(true) }
+
+      if (!saveRes.ok) {
+        const j = await saveRes.json().catch(() => ({})) as { error?: string }
+        throw new Error(j.error ?? "Image envoyée mais erreur de sauvegarde.")
+      }
+
+      setPhotoSent(true)
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : "Erreur d'envoi. Réessayez.")
     } finally {
       setPhotoUploading(false)
       setTimeout(() => setPhotoProgress(0), 1500)
@@ -482,6 +533,12 @@ export default function ConsultationPage() {
                     {photoProgress > 0 && photoProgress < 100 && (
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
                         <div className="h-full rounded-full bg-blue-500 transition-all duration-300" style={{ width: `${photoProgress}%` }} />
+                      </div>
+                    )}
+
+                    {photoError && (
+                      <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                        ⚠️ {photoError}
                       </div>
                     )}
 

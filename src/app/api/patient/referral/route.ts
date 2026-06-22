@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { generateUniqueReferralCode } from "@/lib/referral"
 
 export async function GET() {
   const session = await auth()
@@ -10,11 +11,20 @@ export async function GET() {
 
   const userId = session.user.id
 
-  const [user, totalResult, directReferrals, recentTransactions] = await Promise.all([
-    prisma.user.findUnique({
-      where:  { id: userId },
-      select: { referralCode: true },
-    }),
+  const user = await prisma.user.findUnique({
+    where:  { id: userId },
+    select: { referralCode: true },
+  })
+
+  // Génération lazy pour les patients existants sans code
+  let referralCode = user?.referralCode ?? null
+  if (!referralCode) {
+    const newCode = await generateUniqueReferralCode(prisma)
+    await prisma.user.update({ where: { id: userId }, data: { referralCode: newCode } })
+    referralCode = newCode
+  }
+
+  const [totalResult, directReferrals, recentTransactions] = await Promise.all([
     prisma.referralPointTransaction.aggregate({
       where: { beneficiaryId: userId },
       _sum:  { pointsAwarded: true },
@@ -34,10 +44,10 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
       take:    20,
       select: {
-        id:           true,
-        level:        true,
+        id:            true,
+        level:         true,
         pointsAwarded: true,
-        createdAt:    true,
+        createdAt:     true,
         triggeredBy: {
           select: {
             patientProfile: { select: { firstName: true, lastName: true } },
@@ -48,7 +58,7 @@ export async function GET() {
   ])
 
   return NextResponse.json({
-    referralCode: user?.referralCode ?? null,
+    referralCode,
     totalPoints:  totalResult._sum.pointsAwarded ?? 0,
     directReferrals: directReferrals.map((r) => ({
       id:          r.id,

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { cn, formatXAF } from "@/lib/utils"
 import { FEATURES } from "@/lib/features"
 import { getPusherClient } from "@/lib/pusher-client"
+import { SPECIALITIES, SPECIALITY_LABELS } from "@/lib/specialities"
 import {
   Video, Home, TestTube2, Building2, Zap, ArrowLeft, ArrowRight, Check, Clock, CreditCard, MapPin
 } from "lucide-react"
@@ -17,13 +18,6 @@ type Doctor = {
 
 type ServiceType = "VIDEO" | "CARE" | "SAMPLING" | "PRESENTIEL" | "INSTANT"
 
-const SPECIALITY_LABELS: Record<string, string> = {
-  GENERALISTE:   "Généraliste",   CARDIOLOGUE:   "Cardiologue",
-  DERMATOLOGUE:  "Dermatologue",  PEDIATRE:      "Pédiatre",
-  GYNECOLOGUE:   "Gynécologue",   OPHTALMOLOGUE: "Ophtalmologue",
-  PSYCHIATRE:    "Psychiatre",    NEUROLOGUE:    "Neurologue",
-  ORTHOPEDIE:    "Orthopédiste",  AUTRE:         "Autre",
-}
 
 function getMinDatetime(): string {
   return new Date(Date.now() + 5 * 60 * 1000).toISOString().slice(0, 16)
@@ -297,7 +291,7 @@ export default function BookPage() {
             )}
 
             <div className="mb-4 flex flex-wrap gap-2">
-              {["ALL", "GENERALISTE", "CARDIOLOGUE", "PEDIATRE", "GYNECOLOGUE"].map((s) => (
+              {(["ALL", ...SPECIALITIES.map(s => s.value)] as string[]).map((s) => (
                 <button key={s} onClick={() => setSpecialityFilter(s)}
                   className={cn("rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
                     specialityFilter === s ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600")}>

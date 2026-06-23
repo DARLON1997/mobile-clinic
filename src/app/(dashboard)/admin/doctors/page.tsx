@@ -3,19 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
 import { CheckCircle, XCircle, Trash2, RefreshCw, ShieldCheck, Loader2, AlertTriangle } from "lucide-react"
-
-const SPECIALITY_LABELS: Record<string, string> = {
-  GENERALISTE:   "Généraliste",
-  CARDIOLOGUE:   "Cardiologue",
-  DERMATOLOGUE:  "Dermatologue",
-  PEDIATRE:      "Pédiatre",
-  GYNECOLOGUE:   "Gynécologue",
-  OPHTALMOLOGUE: "Ophtalmologue",
-  PSYCHIATRE:    "Psychiatre",
-  NEUROLOGUE:    "Neurologue",
-  ORTHOPEDIE:    "Orthopédiste",
-  AUTRE:         "Autre",
-}
+import { SPECIALITY_LABELS } from "@/lib/specialities"
 
 type Doctor = {
   id: string

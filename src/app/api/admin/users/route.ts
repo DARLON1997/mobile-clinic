@@ -66,7 +66,7 @@ export async function POST(req: Request) {
           speciality:      d.speciality as MedicalSpeciality,
           licenseNumber:   d.licenseNumber,
           consultationFee: d.consultationFee,
-          isVerifiedByAdmin: false,
+          isVerifiedByAdmin: true,
         },
       })
     }

@@ -3,24 +3,12 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { UserPlus, X, Eye, EyeOff } from "lucide-react"
+import { SPECIALITIES } from "@/lib/specialities"
 
 const ROLES = [
   { value: "CALL_CENTER_AGENT", label: "Agent Call Center" },
   { value: "MEDECIN",           label: "Médecin" },
   { value: "AGENT_TERRAIN",     label: "Agent Terrain" },
-] as const
-
-const SPECIALITIES = [
-  { value: "GENERALISTE",   label: "Généraliste" },
-  { value: "CARDIOLOGUE",   label: "Cardiologue" },
-  { value: "DERMATOLOGUE",  label: "Dermatologue" },
-  { value: "PEDIATRE",      label: "Pédiatre" },
-  { value: "GYNECOLOGUE",   label: "Gynécologue" },
-  { value: "OPHTALMOLOGUE", label: "Ophtalmologue" },
-  { value: "PSYCHIATRE",    label: "Psychiatre" },
-  { value: "NEUROLOGUE",    label: "Neurologue" },
-  { value: "ORTHOPEDIE",    label: "Orthopédiste" },
-  { value: "AUTRE",         label: "Autre" },
 ] as const
 
 type Role = typeof ROLES[number]["value"]

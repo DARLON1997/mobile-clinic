@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
-import { redirect }     from "next/navigation"
 import { auth }         from "@/auth"
 import { prisma }       from "@/lib/prisma"
+import { logServerError } from "@/lib/error-logger"
 
 export async function POST(
   _req: Request,
@@ -14,26 +14,31 @@ export async function POST(
 
   const { id } = await params
 
-  const profile = await prisma.doctorProfile.findUnique({ where: { userId: id } })
-  if (!profile) {
-    return NextResponse.json({ error: "Profil médecin introuvable" }, { status: 404 })
+  try {
+    const profile = await prisma.doctorProfile.findUnique({ where: { userId: id } })
+    if (!profile) {
+      return NextResponse.json({ error: "Profil médecin introuvable" }, { status: 404 })
+    }
+
+    await prisma.$transaction([
+      prisma.doctorProfile.update({
+        where: { userId: id },
+        data:  { isVerifiedByAdmin: true },
+      }),
+      prisma.auditLog.create({
+        data: {
+          userId:     session.user.id,
+          action:     "VERIFY_DOCTOR",
+          targetType: "DoctorProfile",
+          targetId:   profile.id,
+          details:    { doctorUserId: id },
+        },
+      }),
+    ])
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    logServerError("VERIFY_DOCTOR", err)
+    return NextResponse.json({ error: "Erreur serveur." }, { status: 500 })
   }
-
-  await prisma.$transaction([
-    prisma.doctorProfile.update({
-      where: { userId: id },
-      data:  { isVerifiedByAdmin: true },
-    }),
-    prisma.auditLog.create({
-      data: {
-        userId:     session.user.id,
-        action:     "VERIFY_DOCTOR",
-        targetType: "DoctorProfile",
-        targetId:   profile.id,
-        details:    { doctorUserId: id },
-      },
-    }),
-  ])
-
-  redirect("/admin/doctors")
 }

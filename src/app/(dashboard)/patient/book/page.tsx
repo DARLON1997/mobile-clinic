@@ -194,15 +194,10 @@ export default function BookPage() {
           </div>
         </>
       ) : (
-        <div className="mt-4 rounded-xl border p-4 text-left" style={{ background: "rgba(76,175,135,0.08)", borderColor: "#4CAF87" }}>
-          <div className="flex items-start gap-2">
-            <Check className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#4CAF87" }} />
-            <div className="text-sm" style={{ color: "#2d6a4f" }}>
-              <p className="font-semibold">🎉 Lancement — Consultations gratuites !</p>
-              <p className="mt-0.5 text-xs">Dans le cadre de notre lancement, les consultations sont offertes. Votre RDV sera confirmé automatiquement après approbation.</p>
-            </div>
-          </div>
-        </div>
+        <p className="mt-4 rounded-xl px-4 py-3 text-center text-[13px] text-gray-500"
+          style={{ background: "rgba(200,144,106,0.08)", border: "1px solid rgba(200,144,106,0.2)" }}>
+          💳 Paiement en ligne bientôt disponible.
+        </p>
       ))}
 
       <Button onClick={() => router.push("/patient/appointments")} className="mt-6 w-full" size="lg">

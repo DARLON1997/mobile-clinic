@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { PresentielStatusBadge } from "@/components/shared/StatusBadge"
+import { AvailabilityBadge } from "@/components/shared/AvailabilityBadge"
 import { formatDateFR } from "@/lib/utils"
 import { AlertCircle, Check, ShieldCheck, X } from "lucide-react"
 import type { PresentielStatus } from "@/types"
+import type { SlotCheck } from "@/lib/check-doctor-availability"
 
 type PresentielRow = {
   id: string
@@ -16,6 +18,7 @@ type PresentielRow = {
   cabinet: { name: string; city: string } | null
   patient: { phone: string; patientProfile: { firstName: string; lastName: string } | null }
   doctor: { email: string; doctorProfile: { firstName: string; lastName: string; speciality: string } | null }
+  availabilityCheck?: SlotCheck | null
 }
 
 type Filter = "ALL" | PresentielStatus
@@ -29,6 +32,7 @@ export default function AdminPresentielPage() {
     decision: "APPROVE" | "REJECT"
     patientName: string
     doctorName: string
+    availabilityCheck?: SlotCheck | null
   } | null>(null)
   const [adminNote, setAdminNote] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -152,6 +156,7 @@ export default function AdminPresentielPage() {
                     <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                       {formatDateFR(new Date(item.scheduledAt))}
                       <p className="text-xs text-gray-400">{item.duration} min</p>
+                      <AvailabilityBadge check={item.availabilityCheck} />
                     </td>
                     <td className="px-4 py-3 text-gray-600 max-w-[180px] truncate">{item.reason}</td>
                     <td className="px-4 py-3">
@@ -161,11 +166,11 @@ export default function AdminPresentielPage() {
                       {(item.status === "EN_ATTENTE" || item.status === "NOUVEAU_CRENEAU") && (
                         <div className="flex flex-wrap gap-1.5">
                           <Button size="sm" variant="secondary" className="h-7 px-2 text-xs"
-                            onClick={() => { setModal({ id: item.id, decision: "APPROVE", patientName, doctorName }); setAdminNote(""); setError("") }}>
+                            onClick={() => { setModal({ id: item.id, decision: "APPROVE", patientName, doctorName, availabilityCheck: item.availabilityCheck }); setAdminNote(""); setError("") }}>
                             <Check className="h-3 w-3" /> Confirmer
                           </Button>
                           <Button size="sm" variant="danger" className="h-7 px-2 text-xs"
-                            onClick={() => { setModal({ id: item.id, decision: "REJECT", patientName, doctorName }); setAdminNote(""); setError("") }}>
+                            onClick={() => { setModal({ id: item.id, decision: "REJECT", patientName, doctorName, availabilityCheck: item.availabilityCheck }); setAdminNote(""); setError("") }}>
                             <X className="h-3 w-3" /> Refuser
                           </Button>
                         </div>
@@ -194,6 +199,12 @@ export default function AdminPresentielPage() {
             <p className="mb-4 text-sm text-gray-500">
               {modal.patientName} · {modal.doctorName}
             </p>
+
+            {modal.availabilityCheck && (
+              <div className="mb-4">
+                <AvailabilityBadge check={modal.availabilityCheck} />
+              </div>
+            )}
 
             {error && (
               <div className="mb-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>

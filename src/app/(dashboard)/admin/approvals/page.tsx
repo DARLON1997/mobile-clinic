@@ -3,13 +3,16 @@
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { AppointmentStatusBadge } from "@/components/shared/StatusBadge"
+import { AvailabilityBadge } from "@/components/shared/AvailabilityBadge"
 import { formatDateFR } from "@/lib/utils"
 import { ShieldCheck, X, Check, AlertCircle, Zap } from "lucide-react"
+import type { SlotCheck } from "@/lib/check-doctor-availability"
 
 type ApptRow = {
   id: string; scheduledAt: string; reason: string; status: string; isInstant: boolean
   patient: { phone: string; patientProfile: { firstName: string; lastName: string } | null }
-  doctor:  { email: string; doctorProfile: { firstName: string; lastName: string; speciality: string } | null }
+  doctor:  { id: string; email: string; doctorProfile: { firstName: string; lastName: string; speciality: string } | null }
+  availabilityCheck?: SlotCheck | null
 }
 
 type Filter = "ALL" | "AWAITING_APPROVAL" | "APPROVED" | "REJECTED"
@@ -20,6 +23,7 @@ export default function ApprovalsPage() {
   const [loading,    setLoading]    = useState(true)
   const [modal,      setModal]      = useState<{
     id: string; decision: "APPROVE" | "REJECT"; patientName: string; doctorName: string
+    availabilityCheck?: SlotCheck | null
   } | null>(null)
   const [adminNote,  setAdminNote]  = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -151,6 +155,7 @@ export default function ApprovalsPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                       {formatDateFR(new Date(appt.scheduledAt))}
+                      <AvailabilityBadge check={appt.availabilityCheck} />
                     </td>
                     <td className="px-4 py-3 text-gray-600 max-w-[160px] truncate">{appt.reason}</td>
                     <td className="px-4 py-3">
@@ -160,11 +165,11 @@ export default function ApprovalsPage() {
                       {appt.status === "AWAITING_APPROVAL" && (
                         <div className="flex gap-1.5">
                           <Button size="sm" variant="secondary" className="h-7 px-2 text-xs"
-                            onClick={() => { setModal({ id: appt.id, decision: "APPROVE", patientName, doctorName }); setAdminNote(""); setError("") }}>
+                            onClick={() => { setModal({ id: appt.id, decision: "APPROVE", patientName, doctorName, availabilityCheck: appt.availabilityCheck }); setAdminNote(""); setError("") }}>
                             <Check className="h-3 w-3" /> Approuver
                           </Button>
                           <Button size="sm" variant="danger" className="h-7 px-2 text-xs"
-                            onClick={() => { setModal({ id: appt.id, decision: "REJECT", patientName, doctorName }); setAdminNote(""); setError("") }}>
+                            onClick={() => { setModal({ id: appt.id, decision: "REJECT", patientName, doctorName, availabilityCheck: appt.availabilityCheck }); setAdminNote(""); setError("") }}>
                             <X className="h-3 w-3" /> Refuser
                           </Button>
                         </div>
@@ -194,6 +199,12 @@ export default function ApprovalsPage() {
             <p className="mb-4 text-sm text-gray-500">
               {modal.patientName} avec {modal.doctorName}
             </p>
+
+            {modal.availabilityCheck && (
+              <div className="mb-4">
+                <AvailabilityBadge check={modal.availabilityCheck} />
+              </div>
+            )}
 
             {error && (
               <div className="mb-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>

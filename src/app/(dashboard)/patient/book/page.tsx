@@ -8,16 +8,17 @@ import { FEATURES } from "@/lib/features"
 import { getPusherClient } from "@/lib/pusher-client"
 import { SPECIALITIES, SPECIALITY_LABELS } from "@/lib/specialities"
 import {
-  Video, Home, TestTube2, Building2, Zap, ArrowLeft, ArrowRight, Check, Clock, CreditCard, MapPin
+  Video, Home, TestTube2, Building2, Zap, ArrowLeft, ArrowRight, Check,
+  Clock, CreditCard, MapPin, Search, MessageCircle, Loader2,
 } from "lucide-react"
 
 type Doctor = {
   id: string; firstName: string; lastName: string; speciality: string; consultationFee: number
   cabinetId?: string; cabinetAddress?: string; cabinetCity?: string; cabinetName?: string
+  bio?: string
 }
 
-type ServiceType = "VIDEO" | "CARE" | "SAMPLING" | "PRESENTIEL" | "INSTANT"
-
+type ServiceType = "VIDEO" | "CARE" | "SAMPLING" | "PRESENTIEL" | "INSTANT" | "FIND"
 
 function getMinDatetime(): string {
   return new Date(Date.now() + 5 * 60 * 1000).toISOString().slice(0, 16)
@@ -25,32 +26,47 @@ function getMinDatetime(): string {
 
 export default function BookPage() {
   const router = useRouter()
-  const [step,            setStep]           = useState(0)
-  const [type,            setType]           = useState<ServiceType | null>(null)
-  const [doctors,         setDoctors]        = useState<Doctor[]>([])
-  const [doctorsLoaded,   setDoctorsLoaded]  = useState(false)
-  const [selectedDoctor,  setSelectedDoctor] = useState<Doctor | null>(null)
-  const [specialityFilter,setSpecialityFilter] = useState("ALL")
-  const [customDatetime,  setCustomDatetime] = useState("")
-  const [selectedSlot,    setSelectedSlot]   = useState<string | null>(null)
-  const [reason,          setReason]         = useState("")
-  const [loading,         setLoading]        = useState(false)
-  const [error,           setError]          = useState("")
-  const [done,            setDone]           = useState(false)
-  const [appointmentId,   setAppointmentId]  = useState<string | null>(null)
-  const [patientId,       setPatientId]      = useState<string | null>(null)
+  const [step,              setStep]             = useState(0)
+  const [type,              setType]             = useState<ServiceType | null>(null)
 
-  async function loadDoctors() {
-    if (doctorsLoaded) return
+  // Liste de médecins pour VIDEO/PRESENTIEL/INSTANT
+  const [doctors,           setDoctors]          = useState<Doctor[]>([])
+  const [lastLoadedType,    setLastLoadedType]   = useState<ServiceType | null>(null)
+  const [selectedDoctor,    setSelectedDoctor]   = useState<Doctor | null>(null)
+  const [specialityFilter,  setSpecialityFilter] = useState("ALL")
+  const [customDatetime,    setCustomDatetime]   = useState("")
+  const [selectedSlot,      setSelectedSlot]     = useState<string | null>(null)
+
+  // État spécifique au parcours FIND
+  const [findConsultType,   setFindConsultType]  = useState<"VIDEO" | "PRESENTIEL">("VIDEO")
+  const [findSpeciality,    setFindSpeciality]   = useState("ALL")
+  const [findDatetime,      setFindDatetime]     = useState("")
+  const [findResults,       setFindResults]      = useState<Doctor[]>([])
+  const [findLoading,       setFindLoading]      = useState(false)
+  const [findSearched,      setFindSearched]     = useState(false)
+
+  // Motif + soumission
+  const [reason,            setReason]           = useState("")
+  const [loading,           setLoading]          = useState(false)
+  const [error,             setError]            = useState("")
+  const [done,              setDone]             = useState(false)
+  const [appointmentId,     setAppointmentId]    = useState<string | null>(null)
+  const [patientId,         setPatientId]        = useState<string | null>(null)
+
+  async function loadDoctors(serviceType: ServiceType) {
+    const wasInstant = lastLoadedType === "INSTANT"
+    const isInstant  = serviceType === "INSTANT"
+    if (lastLoadedType !== null && wasInstant === isInstant) return
     try {
-      const res = await fetch("/api/doctors")
+      const url = isInstant ? "/api/doctors?availableNow=true" : "/api/doctors"
+      const res = await fetch(url)
       if (res.ok) {
         const json = await res.json()
         const mapped: Doctor[] = (json.data ?? [])
           .filter((d: { doctorProfile: unknown }) => d.doctorProfile)
           .map((d: {
             id: string
-            doctorProfile: { firstName: string; lastName: string; speciality: string; consultationFee: number }
+            doctorProfile: { firstName: string; lastName: string; speciality: string; consultationFee: number; bio?: string }
             cabinet?: { id: string; name: string; address: string; city: string }
           }) => ({
             id:              d.id,
@@ -58,32 +74,79 @@ export default function BookPage() {
             lastName:        d.doctorProfile.lastName,
             speciality:      d.doctorProfile.speciality,
             consultationFee: d.doctorProfile.consultationFee,
+            bio:             d.doctorProfile.bio,
             cabinetId:       d.cabinet?.id,
             cabinetName:     d.cabinet?.name,
             cabinetAddress:  d.cabinet?.address,
             cabinetCity:     d.cabinet?.city,
           }))
         setDoctors(mapped)
+        setLastLoadedType(serviceType)
       }
-    } catch { /* ignore */ } finally {
-      setDoctorsLoaded(true)
+    } catch { /* ignore */ }
+  }
+
+  async function searchDoctors() {
+    if (!findDatetime) { setError("Veuillez choisir une date et une heure."); return }
+    setFindLoading(true)
+    setFindSearched(false)
+    setError("")
+    try {
+      const res = await fetch("/api/patient/find-available-doctors", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type:       findConsultType,
+          dateTime:   new Date(findDatetime).toISOString(),
+          speciality: findSpeciality === "ALL" ? undefined : findSpeciality,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? "Erreur")
+      const mapped: Doctor[] = (json.data ?? []).map((d: {
+        id: string
+        doctorProfile: { firstName: string; lastName: string; speciality: string; consultationFee: number; bio?: string }
+        cabinet?: { id: string; name: string; address: string; city: string }
+      }) => ({
+        id:              d.id,
+        firstName:       d.doctorProfile.firstName,
+        lastName:        d.doctorProfile.lastName,
+        speciality:      d.doctorProfile.speciality,
+        consultationFee: d.doctorProfile.consultationFee,
+        bio:             d.doctorProfile.bio,
+        cabinetId:       d.cabinet?.id,
+        cabinetName:     d.cabinet?.name,
+        cabinetAddress:  d.cabinet?.address,
+        cabinetCity:     d.cabinet?.city,
+      }))
+      setFindResults(mapped)
+      setFindSearched(true)
+      setStep(2)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erreur serveur.")
+    } finally {
+      setFindLoading(false)
     }
   }
+
+  // type effectif pour la soumission (FIND → findConsultType)
+  const effectiveType = type === "FIND" ? findConsultType : type
 
   async function submit() {
     if (!reason.trim() || reason.length < 10) { setError("Le motif doit contenir au moins 10 caractères."); return }
     setLoading(true)
     setError("")
     try {
-      const isPresentiel = type === "PRESENTIEL"
+      const isPresentiel = effectiveType === "PRESENTIEL"
       const isInstant    = type === "INSTANT"
 
-      // Pour INSTANT : recalculer l'heure au moment de la soumission
       const scheduledAt = isInstant
         ? new Date(Date.now() + 5 * 60 * 1000).toISOString()
+        : type === "FIND"
+        ? new Date(findDatetime).toISOString()
         : selectedSlot!
 
-      const url = isPresentiel ? "/api/presentiel" : "/api/appointments"
+      const url  = isPresentiel ? "/api/presentiel" : "/api/appointments"
       const body = isPresentiel
         ? { doctorId: selectedDoctor!.id, cabinetId: selectedDoctor!.cabinetId, scheduledAt, reason: reason.trim(), duration: 30 }
         : { doctorId: selectedDoctor!.id, scheduledAt, reason: reason.trim(), duration: 30, ...(isInstant ? { instant: true } : {}) }
@@ -102,39 +165,36 @@ export default function BookPage() {
   }
 
   function handleNext() {
-    if (step === 0 && !type)           { setError("Veuillez choisir un type de service."); return }
-    if (step === 1 && !selectedDoctor) { setError("Veuillez choisir un médecin."); return }
+    if (step === 0 && !type) { setError("Veuillez choisir un type de service."); return }
 
-    // INSTANT : sauter l'étape date/heure
-    if (step === 1 && type === "INSTANT") {
-      setError("")
-      setStep(3)
-      return
+    if (type === "FIND") {
+      if (step === 1) { searchDoctors(); return } // déclenche la recherche + setStep(2) en cas de succès
+      if (step === 2 && !selectedDoctor) { setError("Veuillez choisir un médecin."); return }
+      setError(""); setStep(3); return
     }
 
+    if (step === 1 && !selectedDoctor) { setError("Veuillez choisir un médecin."); return }
+    if (step === 1 && type === "INSTANT") { setError(""); setStep(3); return }
     if (step === 2 && !selectedSlot)   { setError("Veuillez choisir une date et une heure."); return }
     setError("")
     setStep((s) => s + 1)
   }
 
   function handleBack() {
-    // INSTANT : depuis la confirmation revenir au choix médecin (step 1)
     if (type === "INSTANT" && step === 3) { setStep(1); setError(""); return }
+    if (type === "FIND" && step === 3)    { setStep(2); setError(""); return }
     setStep((s) => s - 1); setError("")
   }
 
   const isWithDoctor = type === "VIDEO" || type === "PRESENTIEL" || type === "INSTANT"
 
-  // Listener Pusher : redirige le patient automatiquement dès approbation admin d'une demande instantanée
   useEffect(() => {
     if (!done || type !== "INSTANT" || !appointmentId || !patientId) return
     const pusher = getPusherClient()
     if (!pusher) return
     const channel = pusher.subscribe(`private-patient-${patientId}`)
     channel.bind("appointment-approved-instant", (data: { appointmentId: string }) => {
-      if (data.appointmentId === appointmentId) {
-        router.push("/patient/appointments")
-      }
+      if (data.appointmentId === appointmentId) router.push("/patient/appointments")
     })
     return () => { pusher.unsubscribe(`private-patient-${patientId}`) }
   }, [done, type, appointmentId, patientId, router])
@@ -200,13 +260,17 @@ export default function BookPage() {
     </div>
   )
 
+  const stepLabels = type === "FIND"
+    ? ["Type", "Critères", "Résultats", "Confirmer"]
+    : ["Type", "Médecin", "Date / Heure", "Confirmer"]
+
   return (
     <div className="mx-auto max-w-2xl">
       {/* En-tête + indicateur d'étapes */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Prendre un rendez-vous</h1>
         <div className="mt-3 flex gap-2">
-          {["Type", "Médecin", "Date / Heure", "Confirmer"].map((label, i) => {
+          {stepLabels.map((label, i) => {
             const skipped = type === "INSTANT" && i === 2
             return (
               <div key={label} className={cn("flex items-center gap-1.5", skipped && "opacity-25")}>
@@ -239,17 +303,23 @@ export default function BookPage() {
           <div className="space-y-3">
             <h2 className="text-base font-semibold text-gray-900">Type de service</h2>
             {([
-              { value: "INSTANT"    as const, icon: Zap,      label: "Consultation instantanée", desc: "Rejoignez un médecin dans 5 minutes",  badge: "5 min" },
-              { value: "VIDEO"      as const, icon: Video,     label: "Consultation vidéo",        desc: "Programmez date et heure librement",   badge: null },
-              { value: "PRESENTIEL" as const, icon: Building2, label: "Consultation en présentiel", desc: "En cabinet, chez le médecin",         badge: null },
-              { value: "CARE"       as const, icon: Home,      label: "Soin à domicile",           desc: "Un agent se déplace chez vous",        badge: null },
-              { value: "SAMPLING"   as const, icon: TestTube2, label: "Prélèvement à domicile",    desc: "Analyses biologiques chez vous",       badge: null },
+              { value: "FIND"       as const, icon: Search,    label: "Trouver un médecin disponible", desc: "Choisissez une spécialité, un type et une heure — on vous trouve le bon médecin", badge: null },
+              { value: "INSTANT"    as const, icon: Zap,       label: "Consultation instantanée",      desc: "Rejoignez un médecin disponible dans ~5 minutes",                                badge: "5 min" },
+              { value: "VIDEO"      as const, icon: Video,     label: "Consultation vidéo",             desc: "Programmez date et heure librement",                                            badge: null },
+              { value: "PRESENTIEL" as const, icon: Building2, label: "Consultation en présentiel",    desc: "En cabinet, chez le médecin",                                                   badge: null },
+              { value: "CARE"       as const, icon: Home,      label: "Soin à domicile",               desc: "Un agent se déplace chez vous",                                                 badge: null },
+              { value: "SAMPLING"   as const, icon: TestTube2, label: "Prélèvement à domicile",        desc: "Analyses biologiques chez vous",                                                badge: null },
             ] as { value: ServiceType; icon: React.ElementType; label: string; desc: string; badge: string | null }[]).map(({ value, icon: Icon, label, desc, badge }) => (
               <button
                 key={value}
                 onClick={() => {
                   setType(value)
-                  if (value === "VIDEO" || value === "PRESENTIEL" || value === "INSTANT") loadDoctors()
+                  if (value === "VIDEO" || value === "PRESENTIEL" || value === "INSTANT") loadDoctors(value)
+                  if (value === "FIND") {
+                    setFindResults([])
+                    setFindSearched(false)
+                    setSelectedDoctor(null)
+                  }
                 }}
                 className={cn(
                   "w-full rounded-xl border-2 p-4 text-left transition-all",
@@ -273,6 +343,58 @@ export default function BookPage() {
                 </div>
               </button>
             ))}
+          </div>
+        )}
+
+        {/* ÉTAPE 1 — Critères FIND */}
+        {step === 1 && type === "FIND" && (
+          <div className="space-y-5">
+            <h2 className="text-base font-semibold text-gray-900">Critères de recherche</h2>
+
+            {/* Type consultation */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Type de consultation</label>
+              <div className="flex gap-3">
+                {[
+                  { v: "VIDEO"      as const, Icon: Video,     label: "Vidéo" },
+                  { v: "PRESENTIEL" as const, Icon: Building2, label: "Présentiel" },
+                ].map(({ v, Icon, label }) => (
+                  <button key={v} onClick={() => setFindConsultType(v)}
+                    className={cn(
+                      "flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-3 text-sm font-medium transition-all",
+                      findConsultType === v ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:border-blue-200"
+                    )}>
+                    <Icon className="h-4 w-4" /> {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Spécialité */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Spécialité (optionnel)</label>
+              <div className="flex flex-wrap gap-2">
+                {(["ALL", ...SPECIALITIES.map(s => s.value)] as string[]).map((s) => (
+                  <button key={s} onClick={() => setFindSpeciality(s)}
+                    className={cn("rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
+                      findSpeciality === s ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600")}>
+                    {s === "ALL" ? "Toutes les spécialités" : SPECIALITY_LABELS[s] ?? s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Date et heure */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Date et heure souhaitées</label>
+              <input
+                type="datetime-local"
+                min={getMinDatetime()}
+                value={findDatetime}
+                onChange={(e) => setFindDatetime(e.target.value)}
+                className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm focus:border-blue-600 focus:outline-none"
+              />
+            </div>
           </div>
         )}
 
@@ -306,43 +428,60 @@ export default function BookPage() {
                 .filter((d) => type !== "PRESENTIEL" || !!d.cabinetId)
               return filtered.length === 0 ? (
                 <p className="py-8 text-center text-sm text-gray-400">
-                  {type === "PRESENTIEL" ? "Aucun médecin avec un cabinet disponible." : "Aucun médecin disponible."}
+                  {type === "INSTANT"
+                    ? "Aucun médecin disponible en ce moment. Essayez dans quelques heures ou choisissez une consultation vidéo programmée."
+                    : type === "PRESENTIEL"
+                    ? "Aucun médecin avec un cabinet disponible."
+                    : "Aucun médecin disponible."}
                 </p>
               ) : (
-                <div className="max-h-80 space-y-2 overflow-y-auto">
-                  {filtered.map((doc) => (
-                    <button key={doc.id} onClick={() => setSelectedDoctor(doc)}
-                      className={cn(
-                        "w-full rounded-xl border-2 p-3 text-left transition-all",
-                        selectedDoctor?.id === doc.id ? "border-blue-600 bg-blue-50" : "border-gray-200 hover:border-blue-200"
-                      )}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-600">
-                            {doc.firstName.charAt(0)}{doc.lastName.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">Dr {doc.firstName} {doc.lastName}</p>
-                            <p className="text-xs text-gray-400">{SPECIALITY_LABELS[doc.speciality] ?? doc.speciality}</p>
-                            {type === "PRESENTIEL" && doc.cabinetAddress && (
-                              <p className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
-                                <MapPin className="h-3 w-3" />
-                                {doc.cabinetAddress}, {doc.cabinetCity}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-sm font-medium text-blue-700">{formatXAF(doc.consultationFee)}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                <DoctorList docs={filtered} selected={selectedDoctor} onSelect={setSelectedDoctor} showCabinet={type === "PRESENTIEL"} />
               )
             })()}
           </div>
         )}
 
-        {/* ÉTAPE 2 — Date / Heure libre (VIDEO et PRESENTIEL uniquement — INSTANT saute cette étape) */}
+        {/* ÉTAPE 2 — Résultats FIND */}
+        {step === 2 && type === "FIND" && (
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-gray-900">
+                {findResults.length > 0
+                  ? `${findResults.length} médecin${findResults.length > 1 ? "s" : ""} disponible${findResults.length > 1 ? "s" : ""}`
+                  : "Aucun résultat"}
+              </h2>
+              {findSearched && (
+                <p className="text-xs text-gray-400">
+                  {findConsultType === "VIDEO" ? "Vidéo" : "Présentiel"} ·{" "}
+                  {new Date(findDatetime).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}
+                  {" "}
+                  {new Date(findDatetime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                </p>
+              )}
+            </div>
+
+            {findResults.length > 0 ? (
+              <DoctorList docs={findResults} selected={selectedDoctor} onSelect={setSelectedDoctor} showCabinet={findConsultType === "PRESENTIEL"} />
+            ) : (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-center">
+                <p className="mb-3 text-sm text-gray-500">
+                  Aucun médecin disponible pour ce créneau. Essayez une autre heure ou contactez-nous directement.
+                </p>
+                <a
+                  href="https://wa.me/242067734369"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700 transition-colors"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Contacter via WhatsApp
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ÉTAPE 2 — Date / Heure libre (VIDEO et PRESENTIEL uniquement) */}
         {step === 2 && (type === "VIDEO" || type === "PRESENTIEL") && (
           <div>
             <h2 className="mb-1 text-base font-semibold text-gray-900">Date et heure souhaitées</h2>
@@ -382,7 +521,7 @@ export default function BookPage() {
                   <span className="font-medium">Dr {selectedDoctor.firstName} {selectedDoctor.lastName}</span>
                 </div>
               )}
-              {type === "PRESENTIEL" && selectedDoctor?.cabinetAddress && (
+              {effectiveType === "PRESENTIEL" && selectedDoctor?.cabinetAddress && (
                 <div className="flex justify-between">
                   <span className="text-gray-500">Cabinet</span>
                   <span className="text-right font-medium">
@@ -396,6 +535,8 @@ export default function BookPage() {
                 <span className="font-medium">
                   {type === "INSTANT"
                     ? "Dans environ 5 minutes"
+                    : type === "FIND"
+                    ? `${new Date(findDatetime).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} à ${new Date(findDatetime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
                     : selectedSlot
                     ? `${new Date(selectedSlot).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} à ${new Date(selectedSlot).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
                     : "—"
@@ -404,10 +545,8 @@ export default function BookPage() {
               </div>
               {selectedDoctor && (
                 <div className="flex justify-between border-t border-gray-200 pt-2 font-semibold">
-                  <>
-                    <span>Tarif</span>
-                    <span className="text-blue-700">{formatXAF(selectedDoctor.consultationFee)}</span>
-                  </>
+                  <span>Tarif</span>
+                  <span className="text-blue-700">{formatXAF(selectedDoctor.consultationFee)}</span>
                 </div>
               )}
             </div>
@@ -457,18 +596,66 @@ export default function BookPage() {
             </Button>
           ) : <div />}
 
-          {step < 3 ? (
-            <Button onClick={handleNext}>
-              Continuer <ArrowRight className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button loading={loading} onClick={submit}>
-              <Check className="h-4 w-4" />
-              {type === "INSTANT" ? "Démarrer la consultation" : "Envoyer la demande"}
-            </Button>
+          {/* FIND step 2 sans résultats : pas de bouton "Continuer" */}
+          {!(type === "FIND" && step === 2 && findResults.length === 0) && (
+            step < 3 ? (
+              <Button onClick={handleNext} disabled={findLoading}>
+                {findLoading
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Recherche...</>
+                  : type === "FIND" && step === 1
+                  ? <><Search className="h-4 w-4" /> Rechercher</>
+                  : <>Continuer <ArrowRight className="h-4 w-4" /></>
+                }
+              </Button>
+            ) : (
+              <Button loading={loading} onClick={submit}>
+                <Check className="h-4 w-4" />
+                {type === "INSTANT" ? "Démarrer la consultation" : "Envoyer la demande"}
+              </Button>
+            )
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function DoctorList({
+  docs, selected, onSelect, showCabinet,
+}: {
+  docs: Doctor[]
+  selected: Doctor | null
+  onSelect: (d: Doctor) => void
+  showCabinet: boolean
+}) {
+  return (
+    <div className="max-h-80 space-y-2 overflow-y-auto">
+      {docs.map((doc) => (
+        <button key={doc.id} onClick={() => onSelect(doc)}
+          className={cn(
+            "w-full rounded-xl border-2 p-3 text-left transition-all",
+            selected?.id === doc.id ? "border-blue-600 bg-blue-50" : "border-gray-200 hover:border-blue-200"
+          )}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-600">
+                {doc.firstName.charAt(0)}{doc.lastName.charAt(0)}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">Dr {doc.firstName} {doc.lastName}</p>
+                <p className="text-xs text-gray-400">{SPECIALITY_LABELS[doc.speciality] ?? doc.speciality}</p>
+                {showCabinet && doc.cabinetAddress && (
+                  <p className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
+                    <MapPin className="h-3 w-3" />
+                    {doc.cabinetAddress}, {doc.cabinetCity}
+                  </p>
+                )}
+              </div>
+            </div>
+            <p className="text-sm font-medium text-blue-700">{formatXAF(doc.consultationFee)}</p>
+          </div>
+        </button>
+      ))}
     </div>
   )
 }

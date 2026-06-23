@@ -2,15 +2,18 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { StatusBadge } from "@/components/shared/StatusBadge"
+import { AvailabilityBadge } from "@/components/shared/AvailabilityBadge"
 import type { AppointmentStatus } from "@prisma/client"
 import { Search, Plus, X, ChevronRight, ChevronLeft, User, Stethoscope, Calendar, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input }  from "@/components/ui/input"
+import type { SlotCheck } from "@/lib/check-doctor-availability"
 
 type Appointment = {
   id: string; status: AppointmentStatus; type: string; scheduledAt: string; reason: string
   patient: { phone: string | null; patientProfile: { firstName: string; lastName: string } | null }
   doctor:  { doctorProfile: { firstName: string; lastName: string; speciality: string } | null }
+  availabilityCheck?: SlotCheck | null
 }
 
 type Doctor = {
@@ -241,6 +244,7 @@ export default function CCAppointmentsPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       {new Date(a.scheduledAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      {a.status === "PENDING" && <AvailabilityBadge check={a.availabilityCheck} />}
                     </td>
                     <td className="px-4 py-3">
                       <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">

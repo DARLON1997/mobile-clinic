@@ -11,6 +11,21 @@ datasource db {
 // ENUMS
 // ─────────────────────────────────────────────────
 
+enum JourSemaine {
+  LUNDI
+  MARDI
+  MERCREDI
+  JEUDI
+  VENDREDI
+  SAMEDI
+  DIMANCHE
+}
+
+enum TypeConsultationDispo {
+  VIDEO
+  PRESENTIEL
+}
+
 enum Role {
   SUPER_ADMIN
   CALL_CENTER_AGENT
@@ -176,6 +191,10 @@ model User {
   examensAsPatient ExamenPrescrit[] @relation("ExamenPatient")
   examensAsDoctor  ExamenPrescrit[] @relation("ExamenDoctor")
   presentielTraite Consultation[]   @relation("PresentielTraitePar")
+
+  // Planning hebdomadaire médecin
+  doctorAvailabilities DoctorAvailability[]   @relation("DoctorAvailabilities")
+  weeklySchedule       DoctorWeeklySchedule[] @relation("DoctorWeeklySchedule")
 
   @@index([email])
   @@index([phone])
@@ -956,4 +975,42 @@ model ReferralPointTransaction {
   @@index([beneficiaryId])
   @@index([triggeredById])
   @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Disponibilité ponctuelle (Call Center / présentiel)
+// ─────────────────────────────────────────────────
+model DoctorAvailability {
+  id        String @id @default(cuid())
+  doctorId  String
+  dayOfWeek Int    // 0=Dimanche … 6=Samedi (JS Date.getDay())
+  startTime String // "08:00"
+  endTime   String // "12:00"
+
+  doctor User @relation("DoctorAvailabilities", fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, dayOfWeek, startTime])
+  @@index([doctorId])
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Planning hebdomadaire récurrent médecin
+// (consultation instantanée + nouveau parcours patient)
+// ─────────────────────────────────────────────────
+model DoctorWeeklySchedule {
+  id        String                @id @default(cuid())
+  doctorId  String
+  jour      JourSemaine
+  type      TypeConsultationDispo
+  startTime String                // "14:00"
+  endTime   String                // "19:00"
+  isActive  Boolean               @default(true)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  doctor User @relation("DoctorWeeklySchedule", fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, jour, type])
+  @@index([doctorId])
+  @@index([jour])
 }

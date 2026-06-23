@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
-import { CheckCircle, XCircle, Trash2, RefreshCw, ShieldCheck, Loader2, AlertTriangle } from "lucide-react"
+import Link from "next/link"
+import { CheckCircle, XCircle, Trash2, RefreshCw, ShieldCheck, Loader2, AlertTriangle, CalendarDays } from "lucide-react"
 import { SPECIALITY_LABELS } from "@/lib/specialities"
 
 type Doctor = {
@@ -280,6 +281,17 @@ export default function DoctorsPage() {
                                 <CheckCircle className="h-3.5 w-3.5" /> Réactiver
                               </button>
                             )
+                          )}
+
+                          {/* Planning hebdomadaire */}
+                          {dp && (
+                            <Link
+                              href={`/admin/medecins/${doc.id}/planning`}
+                              title="Planning hebdomadaire"
+                              className="flex items-center gap-1 rounded-lg bg-blue-600/10 border border-blue-500/30 px-2.5 py-1.5 text-[11px] font-medium text-blue-400 hover:bg-blue-600/20 transition-colors"
+                            >
+                              <CalendarDays className="h-3.5 w-3.5" /> Planning
+                            </Link>
                           )}
 
                           {/* Supprimer */}

@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { triggerAdminNotification } from "@/lib/pusher"
+import { checkSlotInMemory, fetchAvailabilitiesForDoctors } from "@/lib/check-doctor-availability"
 
 const postSchema = z.object({
   doctorId:    z.string().cuid(),
@@ -88,6 +89,28 @@ export async function GET(req: Request) {
       take:  limit,
     }),
   ])
+
+  // Enrichir avec la vérification de disponibilité (Admin & Call Center seulement)
+  if (session.user.role === "SUPER_ADMIN" || session.user.role === "CALL_CENTER_AGENT") {
+    try {
+      const actionableStatuses = ["PENDING", "AWAITING_APPROVAL"]
+      const actionableRows = appointments.filter(a => actionableStatuses.includes(a.status))
+      const doctorIds = [...new Set(actionableRows.map(a => a.doctorId))]
+      const availMap  = await fetchAvailabilitiesForDoctors(doctorIds)
+
+      const enriched = appointments.map(a => {
+        if (!actionableStatuses.includes(a.status)) return { ...a, availabilityCheck: null }
+        const avails = availMap.get(a.doctorId) ?? []
+        return {
+          ...a,
+          availabilityCheck: checkSlotInMemory(avails, new Date(a.scheduledAt), a.duration),
+        }
+      })
+      return NextResponse.json({ success: true, data: enriched, meta: { total, page, limit } })
+    } catch {
+      // Table DoctorAvailability pas encore migrée — dégradation silencieuse
+    }
+  }
 
   return NextResponse.json({ success: true, data: appointments, meta: { total, page, limit } })
 }

@@ -410,17 +410,10 @@ export default function BookPage() {
               </div>
               {selectedDoctor && (
                 <div className="flex justify-between border-t border-gray-200 pt-2 font-semibold">
-                  {!FEATURES.PAYMENT_ENABLED ? (
-                    <>
-                      <span style={{ color: "#4CAF87" }}>🎉 Gratuit — Période de lancement</span>
-                      <span style={{ color: "#4CAF87" }}>0 XAF</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Tarif</span>
-                      <span className="text-blue-700">{formatXAF(selectedDoctor.consultationFee)}</span>
-                    </>
-                  )}
+                  <>
+                    <span>Tarif</span>
+                    <span className="text-blue-700">{formatXAF(selectedDoctor.consultationFee)}</span>
+                  </>
                 </div>
               )}
             </div>
@@ -440,12 +433,10 @@ export default function BookPage() {
                 </p>
               </div>
             ) : (
-              <div className="flex items-start gap-2 rounded-xl p-3" style={{ background: "rgba(76,175,135,0.08)", border: "1px solid #4CAF87" }}>
-                <Check className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#4CAF87" }} />
-                <p className="text-xs" style={{ color: "#2d6a4f" }}>
-                  Dans le cadre du <strong>lancement Mobile Clinic</strong>, les consultations sont <strong>gratuites</strong>. Votre RDV sera confirmé automatiquement après approbation.
-                </p>
-              </div>
+              <p className="rounded-xl px-4 py-3 text-center text-xs text-gray-500"
+                style={{ background: "rgba(200,144,106,0.08)", border: "1px solid rgba(200,144,106,0.2)" }}>
+                💳 Paiement en ligne bientôt disponible. Votre RDV sera confirmé après approbation.
+              </p>
             )}
 
             <div>

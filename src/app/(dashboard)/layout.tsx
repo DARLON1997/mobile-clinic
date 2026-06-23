@@ -39,7 +39,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             color: "#C8906A",
             letterSpacing: "0.04em",
           }}>
-            🚀 Lancement Mobile Clinic — Consultations gratuites pendant la période de lancement. Paiement en ligne bientôt disponible.
+            💳 Paiement en ligne bientôt disponible.
           </div>
         )}
         <main className="mc-dashboard flex-1 overflow-y-auto p-4 md:p-8">

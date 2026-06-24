@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2, Eye, CheckCircle, XCircle, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -34,27 +35,24 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 export default function CallCenterOrdonnancesPage() {
-  const [tab,         setTab]        = useState<Tab>("UPLOADED")
-  const [ordonnances, setOrdonnances] = useState<OrdonnanceItem[]>([])
-  const [loading,     setLoading]    = useState(true)
-  const [selected,    setSelected]   = useState<OrdonnanceItem | null>(null)
-  const [notes,       setNotes]      = useState("")
-  const [saving,      setSaving]     = useState(false)
-  const [error,       setError]      = useState("")
+  const queryClient = useQueryClient()
+  const [tab,      setTab]      = useState<Tab>("UPLOADED")
+  const [selected, setSelected] = useState<OrdonnanceItem | null>(null)
+  const [notes,    setNotes]    = useState("")
+  const [saving,   setSaving]   = useState(false)
+  const [error,    setError]    = useState("")
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    const res  = await fetch("/api/pharmacies/ordonnances")
-    const json = await res.json()
-    const all  = (json.data ?? []) as OrdonnanceItem[]
-    const filtered = tab === "done"
-      ? all.filter((o) => ["FOUND", "PARTIALLY_FOUND", "NOT_FOUND", "ORDERED"].includes(o.status))
-      : all.filter((o) => o.status === tab)
-    setOrdonnances(filtered)
-    setLoading(false)
-  }, [tab])
-
-  useEffect(() => { load() }, [load])
+  const { data: ordonnances = [], isLoading: loading } = useQuery<OrdonnanceItem[]>({
+    queryKey: ["cc-ordonnances", tab],
+    queryFn:  async () => {
+      const res  = await fetch("/api/pharmacies/ordonnances")
+      const json = await res.json()
+      const all  = (json.data ?? []) as OrdonnanceItem[]
+      return tab === "done"
+        ? all.filter((o) => ["FOUND", "PARTIALLY_FOUND", "NOT_FOUND", "ORDERED"].includes(o.status))
+        : all.filter((o) => o.status === tab)
+    },
+  })
 
   async function traiter(status: "FOUND" | "PARTIALLY_FOUND" | "NOT_FOUND") {
     if (!selected) return
@@ -66,7 +64,8 @@ export default function CallCenterOrdonnancesPage() {
     })
     setSaving(false)
     if (!res.ok) { const j = await res.json(); setError(j.error ?? "Erreur"); return }
-    setSelected(null); setNotes(""); await load()
+    setSelected(null); setNotes("")
+    queryClient.invalidateQueries({ queryKey: ["cc-ordonnances"] })
   }
 
   const TABS: { key: Tab; label: string }[] = [

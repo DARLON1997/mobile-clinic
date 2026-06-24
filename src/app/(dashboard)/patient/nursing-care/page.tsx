@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { cn } from "@/lib/utils"
 import { Syringe, MapPin, Clock, Check, ChevronRight, X } from "lucide-react"
 
@@ -31,7 +32,7 @@ type Care = {
 }
 
 export default function NursingCarePage() {
-  const [cares,        setCares]        = useState<Care[]>([])
+  const queryClient = useQueryClient()
   const [showModal,    setShowModal]    = useState(false)
   const [step,         setStep]         = useState(1)
   const [selected,     setSelected]     = useState<string[]>([])
@@ -41,13 +42,14 @@ export default function NursingCarePage() {
   const [instructions, setInstructions] = useState("")
   const [materials,    setMaterials]    = useState("")
   const [prescRef,     setPrescRef]     = useState("")
-  const [loading,      setLoading]      = useState(false)
-  const [error,        setError]        = useState("")
-  const [done,         setDone]         = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState("")
+  const [done,    setDone]    = useState(false)
 
-  useEffect(() => {
-    fetch("/api/nursing-cares").then(r => r.json()).then(j => setCares(j.data ?? []))
-  }, [done])
+  const { data: cares = [] } = useQuery<Care[]>({
+    queryKey: ["patient-nursing-cares"],
+    queryFn:  () => fetch("/api/nursing-cares").then(r => r.json()).then(j => j.data ?? []),
+  })
 
   function toggle(v: string) {
     setSelected(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])
@@ -73,7 +75,9 @@ export default function NursingCarePage() {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
-      setDone(true); setShowModal(false)
+      queryClient.invalidateQueries({ queryKey: ["patient-nursing-cares"] })
+      setDone(true)
+      setShowModal(false)
       setSelected([]); setAddress(""); setDate(""); setInstructions(""); setMaterials(""); setPrescRef(""); setStep(1)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur serveur.")

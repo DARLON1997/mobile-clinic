@@ -1,8 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { HomeVisitStatusBadge } from "@/components/shared/StatusBadge"
 import { Bell, User, MapPin, Clock, Navigation, CheckCircle, Package } from "lucide-react"
 
@@ -14,24 +16,16 @@ type Mission = {
 
 export default function AgentPage() {
   const router = useRouter()
-  const [missions, setMissions] = useState<Mission[]>([])
-  const [loading,  setLoading]  = useState(true)
+  const queryClient = useQueryClient()
+  const { data: session } = useSession()
   const [updating, setUpdating] = useState<string | null>(null)
-  const [userName, setUserName] = useState("Agent")
 
-  async function load() {
-    const [mvRes, sessRes] = await Promise.all([
-      fetch("/api/home-visits"),
-      fetch("/api/auth/session"),
-    ])
-    const mvJson   = await mvRes.json()
-    const sessJson = await sessRes.json()
-    setMissions(mvJson.data ?? [])
-    setUserName(sessJson?.user?.name ?? "Agent")
-    setLoading(false)
-  }
+  const userName = (session?.user as { name?: string })?.name ?? "Agent"
 
-  useEffect(() => { load() }, [])
+  const { data: missions = [], isLoading: loading } = useQuery<Mission[]>({
+    queryKey: ["agent-missions"],
+    queryFn:  () => fetch("/api/home-visits").then(r => r.json()).then(j => j.data ?? []),
+  })
 
   async function patchStatus(id: string, status: string) {
     setUpdating(id)
@@ -40,7 +34,7 @@ export default function AgentPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ homeVisitId: id, status }),
     })
-    await load()
+    queryClient.invalidateQueries({ queryKey: ["agent-missions"] })
     setUpdating(null)
 
     if (status === "EN_ROUTE") {

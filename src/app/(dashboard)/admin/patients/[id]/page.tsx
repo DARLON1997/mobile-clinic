@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
 import { ArrowLeft, Loader2, Monitor, Smartphone, Tablet } from "lucide-react"
 import { STATUS_LABEL, STATUS_COLOR, type PatientActivityStatus } from "@/lib/patient-activity-status"
 import { computeActivityStatus } from "@/lib/patient-activity-status"
@@ -50,20 +51,20 @@ function DeviceIcon({ device }: { device: string }) {
 }
 
 export default function AdminPatientDetailPage() {
-  const { id }    = useParams<{ id: string }>()
-  const router    = useRouter()
-  const [data,    setData]    = useState<{ patient: PatientData; connexions: Connexion[]; consultations: Consultation[] } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [tab,     setTab]     = useState<"identite" | "journal" | "medical">("identite")
+  const { id } = useParams<{ id: string }>()
+  const router = useRouter()
+  const [tab, setTab] = useState<"identite" | "journal" | "medical">("identite")
 
-  useEffect(() => {
-    fetch(`/api/admin/patients/${id}/journal`)
-      .then(r => r.json())
-      .then(setData)
-      .finally(() => setLoading(false))
-  }, [id])
+  const { data, isLoading } = useQuery<{
+    patient: PatientData
+    connexions: Connexion[]
+    consultations: Consultation[]
+  }>({
+    queryKey: ["admin-patient-detail", id],
+    queryFn:  () => fetch(`/api/admin/patients/${id}/journal`).then(r => r.json()),
+  })
 
-  if (loading) return (
+  if (isLoading) return (
     <div className="flex justify-center py-20">
       <Loader2 className="h-6 w-6 animate-spin text-[#C8906A]" />
     </div>
@@ -103,7 +104,6 @@ export default function AdminPatientDetailPage() {
         </div>
       </div>
 
-      {/* Onglets */}
       <div className="flex gap-1 border-b border-[#2A2A2A]">
         {TABS.map(({ key, label }) => (
           <button
@@ -121,7 +121,6 @@ export default function AdminPatientDetailPage() {
         ))}
       </div>
 
-      {/* ── Identité ─────────────────────────────────────────────────────── */}
       {tab === "identite" && (
         <div className="grid gap-3 sm:grid-cols-2">
           {[
@@ -140,7 +139,6 @@ export default function AdminPatientDetailPage() {
         </div>
       )}
 
-      {/* ── Journal de connexions (CDR) ───────────────────────────────────── */}
       {tab === "journal" && (
         <div className="rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] overflow-hidden">
           {!connexions?.length ? (
@@ -163,7 +161,6 @@ export default function AdminPatientDetailPage() {
         </div>
       )}
 
-      {/* ── Activité médicale (admin uniquement) ─────────────────────────── */}
       {tab === "medical" && (
         <div className="space-y-3">
           {!consultations?.length ? (

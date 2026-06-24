@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { PresentielStatusBadge } from "@/components/shared/StatusBadge"
 import { formatDate } from "@/lib/utils"
@@ -23,29 +24,24 @@ type PresentielRow = {
 type TerminerModal = { id: string; patientName: string } | null
 
 export default function DoctorPresentielPage() {
-  const [rows, setRows]             = useState<PresentielRow[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [filter, setFilter]         = useState<"TODAY" | "ALL">("TODAY")
+  const queryClient = useQueryClient()
+  const [filter,       setFilter]       = useState<"TODAY" | "ALL">("TODAY")
   const [terminerModal, setTerminerModal] = useState<TerminerModal>(null)
-  const [notes, setNotes]           = useState("")
-  const [submitting, setSubmitting] = useState(false)
-  const [actionError, setActionError] = useState("")
+  const [notes,        setNotes]        = useState("")
+  const [submitting,   setSubmitting]   = useState(false)
+  const [actionError,  setActionError]  = useState("")
 
   const todayStr = new Date().toISOString().split("T")[0]
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    const params = filter === "TODAY" ? `?date=${todayStr}` : ""
-    try {
+  const { data: rows = [], isLoading: loading } = useQuery<PresentielRow[]>({
+    queryKey: ["doctor-presentiel", filter, todayStr],
+    queryFn:  async () => {
+      const params = filter === "TODAY" ? `?date=${todayStr}` : ""
       const res  = await fetch(`/api/presentiel${params}`)
       const json = await res.json()
-      setRows(json.data ?? [])
-    } finally {
-      setLoading(false)
-    }
-  }, [filter, todayStr])
-
-  useEffect(() => { load() }, [load])
+      return json.data ?? []
+    },
+  })
 
   async function updateStatus(id: string, status: PresentielStatus, extraNotes?: string) {
     setSubmitting(true)
@@ -62,7 +58,7 @@ export default function DoctorPresentielPage() {
       if (!res.ok) throw new Error(json.error ?? "Erreur serveur.")
       setTerminerModal(null)
       setNotes("")
-      await load()
+      queryClient.invalidateQueries({ queryKey: ["doctor-presentiel"] })
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : "Erreur serveur.")
     } finally {

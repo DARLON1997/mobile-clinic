@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
 import { ArrowLeft, Loader2, Monitor, Smartphone, Tablet, Phone } from "lucide-react"
 import { STATUS_LABEL, STATUS_COLOR, computeActivityStatus } from "@/lib/patient-activity-status"
 import type { PatientActivityStatus } from "@/lib/patient-activity-status"
@@ -23,20 +24,16 @@ function DeviceIcon({ device }: { device: string }) {
 }
 
 export default function CallCenterPatientDetailPage() {
-  const { id }    = useParams<{ id: string }>()
-  const router    = useRouter()
-  const [data,    setData]    = useState<{ patient: Patient; connexions: Connexion[] } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [tab,     setTab]     = useState<"identite" | "journal">("identite")
+  const { id } = useParams<{ id: string }>()
+  const router  = useRouter()
+  const [tab,   setTab] = useState<"identite" | "journal">("identite")
 
-  useEffect(() => {
-    fetch(`/api/call-center/patients/${id}/journal`)
-      .then(r => r.json())
-      .then(setData)
-      .finally(() => setLoading(false))
-  }, [id])
+  const { data, isLoading } = useQuery<{ patient: Patient; connexions: Connexion[] }>({
+    queryKey: ["cc-patient-detail", id],
+    queryFn:  () => fetch(`/api/call-center/patients/${id}/journal`).then(r => r.json()),
+  })
 
-  if (loading) return (
+  if (isLoading) return (
     <div className="flex justify-center py-20">
       <Loader2 className="h-6 w-6 animate-spin text-[#C8906A]" />
     </div>

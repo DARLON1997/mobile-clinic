@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import { Video, RefreshCw } from "lucide-react"
+import { getPusherClient } from "@/lib/pusher-client"
+import { useSession } from "next-auth/react"
 
 type Appt = {
   id: string
@@ -15,6 +17,7 @@ type Appt = {
 }
 
 export function ActiveConsultationBanner() {
+  const { data: session } = useSession()
   const [active, setActive] = useState<Appt[]>([])
   const [lastRefresh, setLastRefresh] = useState(Date.now())
 
@@ -23,19 +26,28 @@ export function ActiveConsultationBanner() {
       const res = await fetch("/api/appointments?activeNow=true&limit=20", { cache: "no-store" })
       if (!res.ok) return
       const json = await res.json()
-
-      const joinable = (json.data as Appt[])
-
-      setActive(joinable)
+      setActive(json.data as Appt[])
       setLastRefresh(Date.now())
     } catch { /* silencieux */ }
   }, [])
 
   useEffect(() => {
     poll()
-    const id = setInterval(poll, 20_000) // toutes les 20 s
+    // Fallback polling réduit (2 min) — Pusher est la source principale
+    const id = setInterval(poll, 120_000)
     return () => clearInterval(id)
   }, [poll])
+
+  // Pusher : déclenché quand un RDV passe CONFIRMED ou IN_PROGRESS
+  useEffect(() => {
+    if (!session?.user?.id) return
+    const pusher = getPusherClient()
+    if (!pusher) return
+    const ch = pusher.subscribe(`private-doctor-${session.user.id}`)
+    ch.bind("appointment-status-changed", () => poll())
+    ch.bind("consultation-active-changed", () => poll())
+    return () => { pusher.unsubscribe(`private-doctor-${session.user.id}`) }
+  }, [session?.user?.id, poll])
 
   if (active.length === 0) return null
 

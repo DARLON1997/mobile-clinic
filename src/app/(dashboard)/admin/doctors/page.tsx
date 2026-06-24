@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import Image from "next/image"
 import Link from "next/link"
 import { CheckCircle, XCircle, Trash2, RefreshCw, ShieldCheck, Loader2, AlertTriangle, CalendarDays } from "lucide-react"
@@ -35,29 +36,24 @@ function formatXAF(n: number) {
 }
 
 export default function DoctorsPage() {
-  const [doctors,  setDoctors]  = useState<Doctor[]>([])
-  const [loading,  setLoading]  = useState(true)
-  const [busy,     setBusy]     = useState<string | null>(null)
-  const [toast,    setToast]    = useState<{ msg: string; type: "ok" | "err" } | null>(null)
-  const [confirm,  setConfirm]  = useState<ConfirmDialog>({ open: false, action: null, doctorId: "", doctorName: "" })
+  const queryClient = useQueryClient()
+  const [busy,    setBusy]    = useState<string | null>(null)
+  const [toast,   setToast]   = useState<{ msg: string; type: "ok" | "err" } | null>(null)
+  const [confirm, setConfirm] = useState<ConfirmDialog>({ open: false, action: null, doctorId: "", doctorName: "" })
 
   const showToast = (msg: string, type: "ok" | "err") => {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 3500)
   }
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await fetch("/api/admin/doctors-list")
+  const { data: doctors = [], isLoading: loading, refetch: load } = useQuery<Doctor[]>({
+    queryKey: ["admin-doctors"],
+    queryFn:  async () => {
+      const res  = await fetch("/api/admin/doctors-list")
       const json = await res.json()
-      setDoctors(json.data ?? [])
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => { load() }, [load])
+      return json.data ?? []
+    },
+  })
 
   async function runAction(action: "suspend" | "reactivate" | "delete" | "verify", doctorId: string) {
     setBusy(doctorId)
@@ -82,7 +78,7 @@ export default function DoctorsPage() {
           "Médecin supprimé",
           "ok"
         )
-        await load()
+        queryClient.invalidateQueries({ queryKey: ["admin-doctors"] })
       }
     } catch {
       showToast("Erreur réseau", "err")
@@ -163,7 +159,7 @@ export default function DoctorsPage() {
           <h1 className="text-2xl font-bold text-white">Gestion des médecins</h1>
           <p className="mt-0.5 text-sm text-[#666666]">{doctors.length} médecin{doctors.length > 1 ? "s" : ""} enregistré{doctors.length > 1 ? "s" : ""}</p>
         </div>
-        <button onClick={load} className="flex items-center gap-2 rounded-xl border border-[#2A2A2A] px-3 py-2 text-xs text-[#AAAAAA] hover:text-white transition-colors">
+        <button onClick={() => load()} className="flex items-center gap-2 rounded-xl border border-[#2A2A2A] px-3 py-2 text-xs text-[#AAAAAA] hover:text-white transition-colors">
           <RefreshCw className="h-3.5 w-3.5" /> Actualiser
         </button>
       </div>

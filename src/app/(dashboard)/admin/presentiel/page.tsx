@@ -1,6 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useState, useOptimistic, useEffect } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { getPusherClient } from "@/lib/pusher-client"
 import { Button } from "@/components/ui/button"
 import { PresentielStatusBadge } from "@/components/shared/StatusBadge"
 import { AvailabilityBadge } from "@/components/shared/AvailabilityBadge"
@@ -23,31 +25,50 @@ type PresentielRow = {
 
 type Filter = "ALL" | PresentielStatus
 
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: "ALL",         label: "Tous" },
+  { value: "EN_ATTENTE",  label: "En attente" },
+  { value: "CONFIRME",    label: "Confirmés" },
+  { value: "ANNULE",      label: "Annulés" },
+]
+
 export default function AdminPresentielPage() {
-  const [rows, setRows] = useState<PresentielRow[]>([])
-  const [filter, setFilter] = useState<Filter>("EN_ATTENTE")
-  const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState<{
+  const queryClient = useQueryClient()
+  const [filter,     setFilter]     = useState<Filter>("EN_ATTENTE")
+  const [modal,      setModal]      = useState<{
     id: string
     decision: "APPROVE" | "REJECT"
     patientName: string
     doctorName: string
     availabilityCheck?: SlotCheck | null
   } | null>(null)
-  const [adminNote, setAdminNote] = useState("")
+  const [adminNote,  setAdminNote]  = useState("")
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState("")
+  const [error,      setError]      = useState("")
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    const params = filter !== "ALL" ? `?status=${filter}` : ""
-    const res = await fetch(`/api/presentiel${params}`)
-    const json = await res.json()
-    setRows(json.data ?? [])
-    setLoading(false)
-  }, [filter])
+  const { data: rows = [], isLoading } = useQuery<PresentielRow[]>({
+    queryKey: ["presentiel-admin", filter],
+    queryFn:  async () => {
+      const params = filter !== "ALL" ? `?status=${filter}` : ""
+      const res  = await fetch(`/api/presentiel${params}`)
+      const json = await res.json()
+      return json.data ?? []
+    },
+  })
 
-  useEffect(() => { load() }, [load])
+  const [optimisticRows, removeOptimistic] = useOptimistic(
+    rows,
+    (state: PresentielRow[], id: string) => state.filter(r => r.id !== id)
+  )
+
+  useEffect(() => {
+    const pusher = getPusherClient()
+    if (!pusher) return
+    const ch = pusher.subscribe("private-admin-notifications")
+    const refresh = () => queryClient.invalidateQueries({ queryKey: ["presentiel-admin"] })
+    ch.bind("presentiel-status-changed", refresh)
+    return () => { pusher.unsubscribe("private-admin-notifications") }
+  }, [queryClient])
 
   async function submitDecision() {
     if (!modal) return
@@ -57,34 +78,30 @@ export default function AdminPresentielPage() {
     }
     setSubmitting(true)
     setError("")
+    if (filter === "EN_ATTENTE" || filter === "NOUVEAU_CRENEAU" as Filter) {
+      removeOptimistic(modal.id)
+    }
     try {
       const res = await fetch("/api/presentiel/admin", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           presentielId: modal.id,
-          decision: modal.decision,
-          adminNote: adminNote || undefined,
+          decision:     modal.decision,
+          adminNote:    adminNote || undefined,
         }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? "Erreur serveur.")
       setModal(null)
       setAdminNote("")
-      await load()
+      queryClient.invalidateQueries({ queryKey: ["presentiel-admin"] })
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur serveur.")
     } finally {
       setSubmitting(false)
     }
   }
-
-  const FILTERS: { value: Filter; label: string }[] = [
-    { value: "ALL", label: "Tous" },
-    { value: "EN_ATTENTE", label: "En attente" },
-    { value: "CONFIRME", label: "Confirmés" },
-    { value: "ANNULE", label: "Annulés" },
-  ]
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -106,11 +123,11 @@ export default function AdminPresentielPage() {
         ))}
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
         </div>
-      ) : rows.length === 0 ? (
+      ) : optimisticRows.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white py-12 text-center">
           <ShieldCheck className="mx-auto mb-2 h-10 w-10 text-gray-300" />
           <p className="text-gray-400">Aucune demande pour ce filtre.</p>
@@ -130,7 +147,7 @@ export default function AdminPresentielPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {rows.map((item) => {
+              {optimisticRows.map((item) => {
                 const patientName = item.patient.patientProfile
                   ? `${item.patient.patientProfile.firstName} ${item.patient.patientProfile.lastName}`
                   : item.patient.phone

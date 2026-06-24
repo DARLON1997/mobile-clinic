@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { HomeVisitStatusBadge } from "@/components/shared/StatusBadge"
 import { Plus, X, MapPin, User, Clock, Home, TestTube2, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -33,9 +34,8 @@ const STATUS_FILTER_OPTS = [
 ]
 
 export default function CCHomeVisitsPage() {
-  const [visits,       setVisits]       = useState<Visit[]>([])
+  const queryClient = useQueryClient()
   const [statusFilter, setStatusFilter] = useState("ALL")
-  const [loading,      setLoading]      = useState(true)
   const [modal,        setModal]        = useState(false)
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState("")
@@ -52,17 +52,16 @@ export default function CCHomeVisitsPage() {
   const [reason,          setReason]          = useState("")
   const [notes,           setNotes]           = useState("")
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    const params = new URLSearchParams()
-    if (statusFilter !== "ALL") params.set("status", statusFilter)
-    const res  = await fetch(`/api/home-visits?${params}`)
-    const json = await res.json()
-    setVisits(json.data ?? [])
-    setLoading(false)
-  }, [statusFilter])
-
-  useEffect(() => { load() }, [load])
+  const { data: visits = [], isLoading: loading } = useQuery<Visit[]>({
+    queryKey: ["cc-home-visits", statusFilter],
+    queryFn:  async () => {
+      const params = new URLSearchParams()
+      if (statusFilter !== "ALL") params.set("status", statusFilter)
+      const res  = await fetch(`/api/home-visits?${params}`)
+      const json = await res.json()
+      return json.data ?? []
+    },
+  })
 
   async function searchPatients() {
     if (patientSearch.length < 2) return
@@ -99,7 +98,7 @@ export default function CCHomeVisitsPage() {
       return
     }
     setSuccess(true)
-    await load()
+    queryClient.invalidateQueries({ queryKey: ["cc-home-visits"] })
     setTimeout(() => {
       setModal(false); setSuccess(false)
       setSelectedPatient(null); setAddress(""); setDate(""); setReason(""); setNotes("")

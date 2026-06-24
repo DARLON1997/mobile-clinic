@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Input }  from "@/components/ui/input"
 import { Check, Edit2, User, HeartPulse, AlertTriangle, History } from "lucide-react"
@@ -19,34 +20,35 @@ type Consultation = {
 }
 
 export default function MedicalRecordPage() {
-  const [profile,  setProfile]  = useState<Profile | null>(null)
-  const [consults, setConsults] = useState<Consultation[]>([])
   const [editing,  setEditing]  = useState<"info" | "medical" | "allergies" | null>(null)
   const [saving,   setSaving]   = useState(false)
   const [saved,    setSaved]    = useState(false)
 
-  // Champs éditables
-  const [address,        setAddress]        = useState("")
-  const [city,           setCity]           = useState("")
-  const [emergencyContact, setEmergency]    = useState("")
-  const [medicalHistory, setMedicalHistory] = useState("")
-  const [allergies,      setAllergies]      = useState("")
+  const [address,          setAddress]        = useState("")
+  const [city,             setCity]           = useState("")
+  const [emergencyContact, setEmergency]      = useState("")
+  const [medicalHistory,   setMedicalHistory] = useState("")
+  const [allergies,        setAllergies]      = useState("")
 
-  useEffect(() => {
-    fetch("/api/patient/profile").then((r) => r.json()).then((j) => {
+  const { data: profile } = useQuery<Profile | null>({
+    queryKey: ["patient-profile"],
+    queryFn:  async () => {
+      const j = await fetch("/api/patient/profile").then(r => r.json())
       if (j.data) {
-        setProfile(j.data)
         setAddress(j.data.address ?? "")
         setCity(j.data.city ?? "")
         setEmergency(j.data.emergencyContact ?? "")
         setMedicalHistory(j.data.medicalHistory ?? "")
         setAllergies(j.data.allergies ?? "")
       }
-    })
-    fetch("/api/patient/consultations").then((r) => r.json()).then((j) => {
-      setConsults(j.data ?? [])
-    })
-  }, [])
+      return j.data ?? null
+    },
+  })
+
+  const { data: consults = [] } = useQuery<Consultation[]>({
+    queryKey: ["patient-consultations"],
+    queryFn:  () => fetch("/api/patient/consultations").then(r => r.json()).then(j => j.data ?? []),
+  })
 
   async function saveField(field: string, value: string) {
     setSaving(true)

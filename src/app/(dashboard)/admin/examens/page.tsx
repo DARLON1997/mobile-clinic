@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { FlaskConical, ChevronDown } from "lucide-react"
 
 type Examen = {
@@ -29,21 +30,17 @@ const STATUT_COLOR: Record<string, string> = {
 }
 
 export default function AdminExamensPage() {
-  const [examens,  setExamens]  = useState<Examen[]>([])
-  const [filtre,   setFiltre]   = useState<typeof STATUTS[number]>("Tous")
-  const [loading,  setLoading]  = useState(true)
-  const [editId,   setEditId]   = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  const [filtre,     setFiltre]     = useState<typeof STATUTS[number]>("Tous")
+  const [editId,     setEditId]     = useState<string | null>(null)
   const [editStatut, setEditStatut] = useState<string>("")
-  const [editNote, setEditNote] = useState("")
-  const [saving,   setSaving]   = useState(false)
+  const [editNote,   setEditNote]   = useState("")
+  const [saving,     setSaving]     = useState(false)
 
-  useEffect(() => {
-    setLoading(true)
-    fetch("/api/examens-prescrits")
-      .then(r => r.json())
-      .then(j => setExamens(j.data ?? []))
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: examens = [], isLoading: loading } = useQuery<Examen[]>({
+    queryKey: ["admin-examens"],
+    queryFn:  () => fetch("/api/examens-prescrits").then(r => r.json()).then(j => j.data ?? []),
+  })
 
   const filtered = filtre === "Tous" ? examens : examens.filter(e => e.statut === filtre)
 
@@ -55,9 +52,8 @@ export default function AdminExamensPage() {
       body: JSON.stringify({ statut: editStatut, resultatNote: editNote || undefined }),
     })
     if (res.ok) {
-      const json = await res.json()
-      setExamens(prev => prev.map(e => e.id === id ? { ...e, ...json.data } : e))
       setEditId(null)
+      queryClient.invalidateQueries({ queryKey: ["admin-examens"] })
     }
     setSaving(false)
   }

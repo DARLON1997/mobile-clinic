@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { formatXAF } from "@/lib/utils"
 import { Loader2, Package, Eye, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -31,24 +32,22 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 export default function PharmacieCommandesPage() {
-  const [tab,       setTab]      = useState("")
-  const [commandes, setCommandes] = useState<CommandePharmacieWithRelations[]>([])
-  const [loading,   setLoading]  = useState(true)
-  const [updating,  setUpdating] = useState<string | null>(null)
-  const [expanded,  setExpanded] = useState<string | null>(null)
-  const [error,     setError]    = useState("")
+  const queryClient = useQueryClient()
+  const [tab,      setTab]     = useState("")
+  const [updating, setUpdating] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [error,    setError]   = useState("")
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    const res  = await fetch("/api/pharmacies/commandes")
-    const json = await res.json()
-    let data: CommandePharmacieWithRelations[] = json.data ?? []
-    if (tab) data = data.filter((c) => c.status === tab)
-    setCommandes(data)
-    setLoading(false)
-  }, [tab])
-
-  useEffect(() => { load() }, [load])
+  const { data: commandes = [], isLoading: loading } = useQuery<CommandePharmacieWithRelations[]>({
+    queryKey: ["pharmacie-commandes", tab],
+    queryFn:  async () => {
+      const res  = await fetch("/api/pharmacies/commandes")
+      const json = await res.json()
+      let data: CommandePharmacieWithRelations[] = json.data ?? []
+      if (tab) data = data.filter((c) => c.status === tab)
+      return data
+    },
+  })
 
   async function updateStatus(commandeId: string, status: CommandePharmacieStatus) {
     setUpdating(commandeId)
@@ -60,7 +59,7 @@ export default function PharmacieCommandesPage() {
     })
     setUpdating(null)
     if (!res.ok) { setError("Erreur lors de la mise à jour."); return }
-    await load()
+    queryClient.invalidateQueries({ queryKey: ["pharmacie-commandes"] })
   }
 
   const NEXT_ACTIONS: Record<string, { status: CommandePharmacieStatus; label: string; color: string }[]> = {

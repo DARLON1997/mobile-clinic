@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useOptimistic, useEffect } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { getPusherClient } from "@/lib/pusher-client"
 import { Button } from "@/components/ui/button"
 import { AppointmentStatusBadge } from "@/components/shared/StatusBadge"
 import { AvailabilityBadge } from "@/components/shared/AvailabilityBadge"
@@ -17,10 +19,16 @@ type ApptRow = {
 
 type Filter = "ALL" | "AWAITING_APPROVAL" | "APPROVED" | "REJECTED"
 
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: "ALL",               label: "Tous" },
+  { value: "AWAITING_APPROVAL", label: "En attente" },
+  { value: "APPROVED",          label: "Approuvés" },
+  { value: "REJECTED",          label: "Refusés" },
+]
+
 export default function ApprovalsPage() {
-  const [rows,       setRows]       = useState<ApptRow[]>([])
+  const queryClient = useQueryClient()
   const [filter,     setFilter]     = useState<Filter>("AWAITING_APPROVAL")
-  const [loading,    setLoading]    = useState(true)
   const [modal,      setModal]      = useState<{
     id: string; decision: "APPROVE" | "REJECT"; patientName: string; doctorName: string
     availabilityCheck?: SlotCheck | null
@@ -29,20 +37,34 @@ export default function ApprovalsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error,      setError]      = useState("")
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    const params = filter !== "ALL" ? `?status=${filter}` : ""
-    const res  = await fetch(`/api/appointments${params}`)
-    const json = await res.json()
-    // Demandes instantanées en tête de liste
-    const sorted = [...(json.data ?? [])].sort(
-      (a: ApptRow, b: ApptRow) => (b.isInstant ? 1 : 0) - (a.isInstant ? 1 : 0)
-    )
-    setRows(sorted)
-    setLoading(false)
-  }, [filter])
+  const { data: rows = [], isLoading } = useQuery<ApptRow[]>({
+    queryKey: ["approvals", filter],
+    queryFn:  async () => {
+      const params = filter !== "ALL" ? `?status=${filter}` : ""
+      const res  = await fetch(`/api/appointments${params}`)
+      const json = await res.json()
+      return [...(json.data ?? [])].sort(
+        (a: ApptRow, b: ApptRow) => (b.isInstant ? 1 : 0) - (a.isInstant ? 1 : 0)
+      )
+    },
+  })
 
-  useEffect(() => { load() }, [load])
+  // Optimistic : retire la ligne immédiatement quand admin valide/refuse
+  const [optimisticRows, removeOptimistic] = useOptimistic(
+    rows,
+    (state: ApptRow[], id: string) => state.filter(r => r.id !== id)
+  )
+
+  // Pusher : rafraîchit la liste quand un autre événement arrive
+  useEffect(() => {
+    const pusher = getPusherClient()
+    if (!pusher) return
+    const ch = pusher.subscribe("private-admin-notifications")
+    const refresh = () => queryClient.invalidateQueries({ queryKey: ["approvals"] })
+    ch.bind("appointment-approved", refresh)
+    ch.bind("new-approval-request", refresh)
+    return () => { pusher.unsubscribe("private-admin-notifications") }
+  }, [queryClient])
 
   async function submitDecision() {
     if (!modal) return
@@ -52,6 +74,7 @@ export default function ApprovalsPage() {
     }
     setSubmitting(true)
     setError("")
+    if (filter === "AWAITING_APPROVAL") removeOptimistic(modal.id)
     try {
       const res = await fetch("/api/approvals", {
         method:  "POST",
@@ -66,20 +89,13 @@ export default function ApprovalsPage() {
       if (!res.ok) throw new Error(json.error)
       setModal(null)
       setAdminNote("")
-      await load()
+      queryClient.invalidateQueries({ queryKey: ["approvals"] })
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur serveur.")
     } finally {
       setSubmitting(false)
     }
   }
-
-  const FILTERS: { value: Filter; label: string }[] = [
-    { value: "ALL",               label: "Tous" },
-    { value: "AWAITING_APPROVAL", label: "En attente" },
-    { value: "APPROVED",          label: "Approuvés" },
-    { value: "REJECTED",          label: "Refusés" },
-  ]
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -101,11 +117,11 @@ export default function ApprovalsPage() {
         ))}
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
         </div>
-      ) : rows.length === 0 ? (
+      ) : optimisticRows.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white py-12 text-center">
           <ShieldCheck className="mx-auto mb-2 h-10 w-10 text-gray-300" />
           <p className="text-gray-400">Aucune demande pour ce filtre.</p>
@@ -124,7 +140,7 @@ export default function ApprovalsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {rows.map((appt) => {
+              {optimisticRows.map((appt) => {
                 const patientName = appt.patient.patientProfile
                   ? `${appt.patient.patientProfile.firstName} ${appt.patient.patientProfile.lastName}`
                   : appt.patient.phone

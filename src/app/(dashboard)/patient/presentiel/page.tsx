@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { CalendrierRDV } from "@/components/presentiel/CalendrierRDV"
 import { formatDate, formatXAF } from "@/lib/utils"
@@ -19,7 +20,6 @@ interface DoctorOption {
 const DURATIONS = [15, 30, 45, 60] as const
 
 export default function PresentielPage() {
-  const [doctors, setDoctors] = useState<DoctorOption[]>([])
   const [selectedDoctor, setSelectedDoctor] = useState<DoctorOption | null>(null)
   const [selectedDateTime, setSelectedDateTime] = useState<Date | null>(null)
   const [duration, setDuration] = useState<typeof DURATIONS[number]>(30)
@@ -28,28 +28,26 @@ export default function PresentielPage() {
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
 
+  const { data: doctors = [] } = useQuery<DoctorOption[]>({
+    queryKey: ["doctors-presentiel"],
+    queryFn:  async () => {
+      const res  = await fetch("/api/doctors")
+      if (!res.ok) return []
+      const json = await res.json()
+      return (json.data ?? []).map((item: { id: string; doctorProfile?: { firstName?: string; lastName?: string; speciality?: string; consultationFee?: number } | null; cabinet?: CabinetMedecin | null }) => ({
+        id: item.id,
+        firstName:       item.doctorProfile?.firstName ?? "",
+        lastName:        item.doctorProfile?.lastName ?? "",
+        speciality:      item.doctorProfile?.speciality ?? "",
+        consultationFee: item.doctorProfile?.consultationFee ?? 0,
+        cabinet:         item.cabinet ?? null,
+      }))
+    },
+  })
+
   useEffect(() => {
-    async function fetchDoctors() {
-      try {
-        const res = await fetch("/api/doctors")
-        if (!res.ok) return
-        const json = await res.json()
-        const mapped = (json.data ?? []).map((item: any) => ({
-          id: item.id,
-          firstName: item.doctorProfile?.firstName ?? "",
-          lastName: item.doctorProfile?.lastName ?? "",
-          speciality: item.doctorProfile?.speciality ?? "",
-          consultationFee: item.doctorProfile?.consultationFee ?? 0,
-          cabinet: item.cabinet ?? null,
-        }))
-        setDoctors(mapped)
-        if (mapped.length > 0) setSelectedDoctor(mapped[0])
-      } catch {
-        // ignore
-      }
-    }
-    fetchDoctors()
-  }, [])
+    if (doctors.length > 0 && !selectedDoctor) setSelectedDoctor(doctors[0])
+  }, [doctors, selectedDoctor])
 
   useEffect(() => {
     setSelectedDateTime(null)

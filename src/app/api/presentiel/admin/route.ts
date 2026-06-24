@@ -5,6 +5,8 @@ import { z } from "zod"
 import { formatDateFR } from "@/lib/utils"
 import { sendSMS } from "@/lib/africas-talking"
 import { sendEmail } from "@/lib/mailer"
+import { revalidatePath } from "next/cache"
+import { triggerPatientNotification, triggerDoctorNotification, triggerCallCenterStatusChange } from "@/lib/pusher"
 
 const approveSchema = z.object({
   presentielId: z.string().cuid(),
@@ -161,6 +163,21 @@ export async function POST(req: Request) {
         ).catch(console.error)
       }
 
+      triggerPatientNotification(presentiel.patientId, "presentiel-status-changed", {
+        presentielId, status: "CONFIRME",
+      }).catch(console.error)
+      triggerDoctorNotification(presentiel.doctorId, "presentiel-status-changed", {
+        presentielId, status: "CONFIRME",
+      }).catch(console.error)
+      triggerCallCenterStatusChange("presentiel-status-changed", {
+        presentielId, status: "CONFIRME",
+      }).catch(console.error)
+
+      revalidatePath("/admin/presentiel")
+      revalidatePath("/call-center/appointments")
+      revalidatePath("/patient/presentiel")
+      revalidatePath("/doctor/presentiel")
+
       return NextResponse.json({ success: true, data: updated })
     }
 
@@ -203,6 +220,17 @@ export async function POST(req: Request) {
         `Bonjour ${patientName}, votre demande de consultation présentielle du ${dateStr} a été refusée.${adminNote ? ` Raison : ${adminNote}` : ""}`
       ).catch(console.error)
     }
+
+    triggerPatientNotification(presentiel.patientId, "presentiel-status-changed", {
+      presentielId, status: "ANNULE",
+    }).catch(console.error)
+    triggerCallCenterStatusChange("presentiel-status-changed", {
+      presentielId, status: "ANNULE",
+    }).catch(console.error)
+
+    revalidatePath("/admin/presentiel")
+    revalidatePath("/call-center/appointments")
+    revalidatePath("/patient/presentiel")
 
     return NextResponse.json({ success: true, data: updated })
   } catch (err) {

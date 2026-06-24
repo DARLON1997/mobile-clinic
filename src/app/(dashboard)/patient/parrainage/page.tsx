@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Copy, Check, Share2, Gift, Users, TrendingUp, Clock } from "lucide-react"
 
 type DirectReferral = {
@@ -27,16 +28,12 @@ type ReferralData = {
 }
 
 export default function ParrainagePage() {
-  const [data,    setData]    = useState<ReferralData | null>(null)
-  const [copied,  setCopied]  = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [copied, setCopied] = useState(false)
 
-  useEffect(() => {
-    fetch("/api/patient/referral")
-      .then((r) => r.json())
-      .then(setData)
-      .finally(() => setLoading(false))
-  }, [])
+  const { data, isLoading: loading } = useQuery<ReferralData | null>({
+    queryKey: ["patient-referral"],
+    queryFn:  () => fetch("/api/patient/referral").then(r => r.json()),
+  })
 
   function copyCode() {
     if (!data?.referralCode) return

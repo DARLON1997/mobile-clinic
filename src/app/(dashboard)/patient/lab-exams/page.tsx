@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { cn } from "@/lib/utils"
 import { FlaskConical, MapPin, Clock, Check, Download, ChevronRight, X } from "lucide-react"
 
@@ -36,24 +37,25 @@ type Exam = {
 }
 
 export default function LabExamsPage() {
-  const [exams,         setExams]         = useState<Exam[]>([])
-  const [showModal,     setShowModal]     = useState(false)
-  const [step,          setStep]          = useState(1)
-  const [selected,      setSelected]      = useState<string[]>([])
-  const [address,       setAddress]       = useState("")
-  const [city,          setCity]          = useState("Brazzaville")
-  const [date,          setDate]          = useState("")
-  const [instructions,  setInstructions]  = useState("")
-  const [prescRef,      setPrescRef]      = useState("")
-  const [loading,       setLoading]       = useState(false)
-  const [error,         setError]         = useState("")
-  const [done,          setDone]          = useState(false)
+  const queryClient = useQueryClient()
+  const [showModal,    setShowModal]    = useState(false)
+  const [step,         setStep]         = useState(1)
+  const [selected,     setSelected]     = useState<string[]>([])
+  const [address,      setAddress]      = useState("")
+  const [city,         setCity]         = useState("Brazzaville")
+  const [date,         setDate]         = useState("")
+  const [instructions, setInstructions] = useState("")
+  const [prescRef,     setPrescRef]     = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState("")
+  const [done,    setDone]    = useState(false)
 
   const pricePerExam = (n: number) => n <= 2 ? 5000 : n <= 5 ? 10000 : 18000
 
-  useEffect(() => {
-    fetch("/api/lab-exams").then(r => r.json()).then(j => setExams(j.data ?? []))
-  }, [done])
+  const { data: exams = [] } = useQuery<Exam[]>({
+    queryKey: ["patient-lab-exams"],
+    queryFn:  () => fetch("/api/lab-exams").then(r => r.json()).then(j => j.data ?? []),
+  })
 
   function toggleExam(v: string) {
     setSelected(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])
@@ -78,7 +80,9 @@ export default function LabExamsPage() {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
-      setDone(true); setShowModal(false)
+      queryClient.invalidateQueries({ queryKey: ["patient-lab-exams"] })
+      setDone(true)
+      setShowModal(false)
       setSelected([]); setAddress(""); setDate(""); setInstructions(""); setPrescRef(""); setStep(1)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur serveur.")

@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { AvailabilityBadge } from "@/components/shared/AvailabilityBadge"
 import type { AppointmentStatus } from "@prisma/client"
@@ -49,10 +50,9 @@ function generateSlots(doctorId: string) {
 }
 
 export default function CCAppointmentsPage() {
-  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const queryClient = useQueryClient()
   const [statusFilter, setStatusFilter] = useState("ALL")
   const [search,       setSearch]       = useState("")
-  const [loading,      setLoading]      = useState(true)
   const [submitting,   setSubmitting]   = useState<string | null>(null)
 
   // Modal état
@@ -79,17 +79,16 @@ export default function CCAppointmentsPage() {
   // Étape 4 — motif
   const [reason, setReason] = useState("")
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    const params = new URLSearchParams()
-    if (statusFilter !== "ALL") params.set("status", statusFilter)
-    const res  = await fetch(`/api/appointments?${params}`)
-    const json = await res.json()
-    setAppointments(json.data ?? [])
-    setLoading(false)
-  }, [statusFilter])
-
-  useEffect(() => { load() }, [load])
+  const { data: appointments = [], isLoading: loading } = useQuery<Appointment[]>({
+    queryKey: ["cc-appointments", statusFilter],
+    queryFn:  async () => {
+      const params = new URLSearchParams()
+      if (statusFilter !== "ALL") params.set("status", statusFilter)
+      const res  = await fetch(`/api/appointments?${params}`)
+      const json = await res.json()
+      return json.data ?? []
+    },
+  })
 
   async function searchPatients() {
     if (patientSearch.length < 2) return
@@ -118,7 +117,7 @@ export default function CCAppointmentsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ appointmentId: id }),
     })
-    await load()
+    queryClient.invalidateQueries({ queryKey: ["cc-appointments"] })
     setSubmitting(null)
   }
 
@@ -148,7 +147,7 @@ export default function CCAppointmentsPage() {
       return
     }
     setSuccess(true)
-    await load()
+    queryClient.invalidateQueries({ queryKey: ["cc-appointments"] })
     setTimeout(() => {
       setModal(false); setStep(1); setSuccess(false)
       setSelectedPatient(null); setSelectedDoctor(null); setSelectedSlot(null); setReason("")

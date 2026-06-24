@@ -5,9 +5,10 @@ import { z } from "zod"
 import { sendSMS, smsTemplates } from "@/lib/africas-talking"
 import { sendEmail, emailTemplates } from "@/lib/mailer"
 import { createVideoRoom } from "@/lib/daily"
-import { triggerAdminNotification, triggerPatientNotification } from "@/lib/pusher"
+import { triggerAdminNotification, triggerPatientNotification, triggerDoctorNotification, triggerCallCenterStatusChange } from "@/lib/pusher"
 import { formatDateFR, formatXAF } from "@/lib/utils"
 import { FEATURES } from "@/lib/features"
+import { revalidatePath } from "next/cache"
 
 const approveSchema = z.object({
   appointmentId: z.string().cuid(),
@@ -270,6 +271,22 @@ export async function POST(req: Request) {
         }).catch(console.error)
       }
 
+      // Invalidation temps réel : patient + médecin + call-center voient le changement
+      triggerPatientNotification(appointment.patientId, "appointment-status-changed", {
+        appointmentId, status: updated.status,
+      }).catch(console.error)
+      triggerDoctorNotification(appointment.doctorId, "appointment-status-changed", {
+        appointmentId, status: updated.status,
+      }).catch(console.error)
+      triggerCallCenterStatusChange("appointment-status-changed", {
+        appointmentId, status: updated.status,
+      }).catch(console.error)
+
+      revalidatePath("/admin/approvals")
+      revalidatePath("/call-center/appointments")
+      revalidatePath("/patient/appointments")
+      revalidatePath("/doctor/appointments")
+
       return NextResponse.json({ success: true, data: updated })
     }
 
@@ -313,6 +330,17 @@ export async function POST(req: Request) {
       sendSMS(appointment.patient.phone,
         smsTemplates.appointmentRejected(patientName, adminNote)).catch(console.error)
     }
+
+    triggerPatientNotification(appointment.patientId, "appointment-status-changed", {
+      appointmentId, status: "REJECTED",
+    }).catch(console.error)
+    triggerCallCenterStatusChange("appointment-status-changed", {
+      appointmentId, status: "REJECTED",
+    }).catch(console.error)
+
+    revalidatePath("/admin/approvals")
+    revalidatePath("/call-center/appointments")
+    revalidatePath("/patient/appointments")
 
     return NextResponse.json({ success: true, data: updated })
   } catch (err) {

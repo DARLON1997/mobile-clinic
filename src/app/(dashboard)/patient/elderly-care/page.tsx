@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { cn } from "@/lib/utils"
 import { Users, MapPin, Clock, Check, ChevronRight, X } from "lucide-react"
 
@@ -38,7 +39,6 @@ type Care = {
 }
 
 export default function ElderlyCarePage() {
-  const [cares,         setCares]         = useState<Care[]>([])
   const [showModal,     setShowModal]     = useState(false)
   const [step,          setStep]          = useState(1)
   const [patientAge,    setPatientAge]    = useState("")
@@ -52,12 +52,14 @@ export default function ElderlyCarePage() {
   const [date,          setDate]          = useState("")
   const [endDate,       setEndDate]       = useState("")
   const [loading,       setLoading]       = useState(false)
-  const [error,         setError]         = useState("")
-  const [done,          setDone]          = useState(false)
+  const [error, setError] = useState("")
+  const [done,  setDone]  = useState(false)
 
-  useEffect(() => {
-    fetch("/api/elderly-cares").then(r => r.json()).then(j => setCares(j.data ?? []))
-  }, [done])
+  const queryClient = useQueryClient()
+  const { data: cares = [] } = useQuery<Care[]>({
+    queryKey: ["patient-elderly-cares"],
+    queryFn:  () => fetch("/api/elderly-cares").then(r => r.json()).then(j => j.data ?? []),
+  })
 
   function toggle(v: string) {
     setSelected(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])
@@ -88,7 +90,9 @@ export default function ElderlyCarePage() {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
-      setDone(true); setShowModal(false)
+      queryClient.invalidateQueries({ queryKey: ["patient-elderly-cares"] })
+      setDone(true)
+      setShowModal(false)
       setSelected([]); setAddress(""); setDate(""); setStep(1)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur serveur.")

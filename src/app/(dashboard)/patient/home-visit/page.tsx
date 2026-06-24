@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button }  from "@/components/ui/button"
 import { Input }   from "@/components/ui/input"
 import { cn }      from "@/lib/utils"
@@ -14,6 +15,7 @@ type Visit = {
 }
 
 export default function HomeVisitPage() {
+  const queryClient = useQueryClient()
   const [type,    setType]    = useState<"CARE" | "SAMPLING">("CARE")
   const [address, setAddress] = useState("")
   const [city,    setCity]    = useState("Brazzaville")
@@ -23,11 +25,11 @@ export default function HomeVisitPage() {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState("")
   const [done,    setDone]    = useState(false)
-  const [visits,  setVisits]  = useState<Visit[]>([])
 
-  useEffect(() => {
-    fetch("/api/home-visits").then((r) => r.json()).then((j) => setVisits(j.data ?? []))
-  }, [done])
+  const { data: visits = [] } = useQuery<Visit[]>({
+    queryKey: ["patient-home-visits"],
+    queryFn:  () => fetch("/api/home-visits").then(r => r.json()).then(j => j.data ?? []),
+  })
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -54,6 +56,7 @@ export default function HomeVisitPage() {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
       setDone(true)
+      queryClient.invalidateQueries({ queryKey: ["patient-home-visits"] })
       setAddress(""); setDate(""); setReason(""); setNotes("")
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur serveur.")

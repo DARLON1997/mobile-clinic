@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
 import { Search, Users, UserCheck, TrendingUp, ChevronLeft, ChevronRight, Phone } from "lucide-react"
 import { STATUS_LABEL, STATUS_COLOR, type PatientActivityStatus } from "@/lib/patient-activity-status"
 
@@ -25,7 +26,11 @@ type Patient = {
   derniereActivite: { type: string; date: string; statut: string } | null
 }
 
-type Pagination = { total: number; page: number; limit: number; pages: number }
+type ApiResponse = {
+  stats:      Stats
+  data:       Patient[]
+  pagination: { total: number; page: number; limit: number; pages: number }
+}
 
 function daysSince(iso: string | null): string {
   if (!iso) return "Jamais"
@@ -37,31 +42,24 @@ function daysSince(iso: string | null): string {
 
 export default function CallCenterPatientsPage() {
   const router = useRouter()
-  const [stats,      setStats]      = useState<Stats | null>(null)
-  const [patients,   setPatients]   = useState<Patient[]>([])
-  const [pagination, setPagination] = useState<Pagination>({ total: 0, page: 1, limit: 20, pages: 1 })
-  const [loading,    setLoading]    = useState(true)
-  const [search,     setSearch]     = useState("")
+  const [search,       setSearch]       = useState("")
   const [statusFilter, setStatusFilter] = useState("")
-  const [page,       setPage]       = useState(1)
+  const [page,         setPage]         = useState(1)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
+  const { data, isLoading } = useQuery<ApiResponse>({
+    queryKey: ["cc-patients", page, search, statusFilter],
+    queryFn:  async () => {
       const params = new URLSearchParams({ page: String(page), limit: "20" })
       if (search)       params.set("search", search)
       if (statusFilter) params.set("status", statusFilter)
-      const res  = await fetch(`/api/call-center/patients?${params}`)
-      const json = await res.json()
-      if (res.ok) {
-        setStats(json.stats)
-        setPatients(json.data)
-        setPagination(json.pagination)
-      }
-    } finally { setLoading(false) }
-  }, [page, search, statusFilter])
+      const res = await fetch(`/api/call-center/patients?${params}`)
+      return res.json()
+    },
+  })
 
-  useEffect(() => { load() }, [load])
+  const stats      = data?.stats ?? null
+  const patients   = data?.data  ?? []
+  const pagination = data?.pagination ?? { total: 0, page: 1, limit: 20, pages: 1 }
 
   const statusFilters = [
     { value: "",               label: "Tous",               color: "#C8906A" },
@@ -147,7 +145,7 @@ export default function CallCenterPatientsPage() {
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F]">
-        {loading ? (
+        {isLoading ? (
           <div className="py-16 text-center text-sm text-[#666]">Chargement…</div>
         ) : patients.length === 0 ? (
           <div className="py-16 text-center text-sm text-[#666]">Aucun patient trouvé.</div>

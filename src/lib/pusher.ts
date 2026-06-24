@@ -104,8 +104,36 @@ export async function triggerCallCenterPresentiel(payload: object) {
 
 export async function triggerPatientNotification(
   patientId: string,
-  event: "ordonnance-processed" | "commande-status" | "medicament-found" | "appointment-approved-instant" | "ordonnance-photo-envoyee",
+  event:
+    | "ordonnance-processed"
+    | "commande-status"
+    | "medicament-found"
+    | "appointment-approved-instant"
+    | "ordonnance-photo-envoyee"
+    | "appointment-status-changed"
+    | "presentiel-status-changed"
+    | "notification-bell-update",
   payload: object
 ) {
   await pusherServer.trigger(patientChannel(patientId), event, payload)
+}
+
+export function doctorChannel(doctorId: string) {
+  return `private-doctor-${doctorId}`
+}
+
+export async function triggerDoctorNotification(
+  doctorId: string,
+  event:
+    | "appointment-status-changed"
+    | "presentiel-status-changed"
+    | "consultation-active-changed"
+    | "notification-bell-update",
+  payload: object
+) {
+  await pusherServer.trigger(doctorChannel(doctorId), event, payload)
+}
+
+export async function triggerCallCenterStatusChange(event: string, payload: object) {
+  await pusherServer.trigger(CALL_CENTER_INBOX_CHANNEL, event, payload)
 }

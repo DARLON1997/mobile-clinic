@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2, Plus, Edit2, Package, AlertTriangle } from "lucide-react"
 import { formatXAF } from "@/lib/utils"
 import { MEDICAMENT_CATEGORIE_LABELS, type MedicamentCategorie, type MedicamentStockData } from "@/types"
@@ -21,47 +22,32 @@ const EMPTY_FORM = {
 }
 
 export default function CataloguePage() {
-  const [medicaments,   setMedicaments]   = useState<MedicamentStockData[]>([])
-  const [loading,       setLoading]       = useState(true)
-  const [pharmacieId,   setPharmacieId]   = useState("")
-  const [modal,         setModal]         = useState<ModalState>({ open: false, mode: "add" })
-  const [form,          setForm]          = useState(EMPTY_FORM)
-  const [newStock,      setNewStock]      = useState(0)
-  const [saving,        setSaving]        = useState(false)
-  const [error,         setError]         = useState("")
-  const [search,        setSearch]        = useState("")
-  const [catFilter,     setCatFilter]     = useState("")
+  const queryClient = useQueryClient()
+  const [modal,      setModal]    = useState<ModalState>({ open: false, mode: "add" })
+  const [form,       setForm]     = useState(EMPTY_FORM)
+  const [newStock,   setNewStock] = useState(0)
+  const [saving,     setSaving]   = useState(false)
+  const [error,      setError]    = useState("")
+  const [search,     setSearch]   = useState("")
+  const [catFilter,  setCatFilter] = useState("")
 
-  const loadPharmacie = useCallback(async () => {
-    setLoading(true)
-    const res  = await fetch("/api/pharmacies/dashboard")
-    if (!res.ok) { setLoading(false); return }
-    // On récupère le pharmacieId depuis le profil
-    const meRes  = await fetch("/api/pharmacies?isVerified=false")
-    setLoading(false)
-  }, [])
+  const { data: pharmacieId = "" } = useQuery<string>({
+    queryKey: ["pharmacie-profil-id"],
+    queryFn:  () => fetch("/api/pharmacies/profil-courant").then(r => r.json()).then(j => j.data?.id ?? ""),
+  })
 
-  const loadMedicaments = useCallback(async (pid: string) => {
-    if (!pid) return
-    setLoading(true)
-    const params = new URLSearchParams()
-    if (search)    params.set("search", search)
-    if (catFilter) params.set("categorie", catFilter)
-    const res  = await fetch(`/api/pharmacies/${pid}/medicaments?${params}`)
-    const json = await res.json()
-    setMedicaments(json.data ?? [])
-    setLoading(false)
-  }, [search, catFilter])
-
-  // Récupérer le pharmacieId du profil connecté
-  useEffect(() => {
-    fetch("/api/pharmacies/profil-courant").then((r) => r.json()).then((j) => {
-      if (j.data?.id) {
-        setPharmacieId(j.data.id)
-        loadMedicaments(j.data.id)
-      }
-    }).catch(() => setLoading(false))
-  }, [loadMedicaments])
+  const { data: medicaments = [], isLoading: loading } = useQuery<MedicamentStockData[]>({
+    queryKey: ["pharmacie-medicaments", pharmacieId, search, catFilter],
+    enabled:  !!pharmacieId,
+    queryFn:  async () => {
+      const params = new URLSearchParams()
+      if (search)    params.set("search", search)
+      if (catFilter) params.set("categorie", catFilter)
+      const res  = await fetch(`/api/pharmacies/${pharmacieId}/medicaments?${params}`)
+      const json = await res.json()
+      return json.data ?? []
+    },
+  })
 
   const openAdd = () => { setForm(EMPTY_FORM); setError(""); setModal({ open: true, mode: "add" }) }
   const openEdit = (med: MedicamentStockData) => {
@@ -102,7 +88,7 @@ export default function CataloguePage() {
         if (!res.ok) { const j = await res.json(); setError(j.error ?? "Erreur"); setSaving(false); return }
       }
       setModal({ open: false, mode: "add" })
-      loadMedicaments(pharmacieId)
+      queryClient.invalidateQueries({ queryKey: ["pharmacie-medicaments"] })
     } catch { setError("Erreur réseau.") }
     setSaving(false)
   }
@@ -112,7 +98,7 @@ export default function CataloguePage() {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ estDisponible: !med.estDisponible }),
     })
-    loadMedicaments(pharmacieId)
+    queryClient.invalidateQueries({ queryKey: ["pharmacie-medicaments"] })
   }
 
   const displayed = medicaments.filter((m) => {

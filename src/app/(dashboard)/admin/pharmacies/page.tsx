@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2, Plus, CheckCircle, PauseCircle, PlayCircle, Eye } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -20,48 +21,49 @@ const TABS: { key: Tab; label: string }[] = [
 ]
 
 export default function AdminPharmaciesPage() {
-  const [tab,        setTab]       = useState<Tab>("")
-  const [pharmacies, setPharmacies] = useState<PharmacieRow[]>([])
-  const [loading,    setLoading]   = useState(true)
-  const [acting,     setActing]    = useState<string | null>(null)
-  const [error,      setError]     = useState("")
-  const [showAdd,    setShowAdd]   = useState(false)
-  const [addForm,    setAddForm]   = useState({
+  const queryClient = useQueryClient()
+  const [tab,      setTab]     = useState<Tab>("")
+  const [acting,   setActing]  = useState<string | null>(null)
+  const [error,    setError]   = useState("")
+  const [showAdd,  setShowAdd] = useState(false)
+  const [addForm,  setAddForm] = useState({
     email: "", telephone: "", nomPharmacie: "", numeroLicence: "", adresse: "", quartier: "", accepteLivraison: false,
   })
-  const [adding,     setAdding]    = useState(false)
-  const [addError,   setAddError]  = useState("")
+  const [adding,   setAdding]  = useState(false)
+  const [addError, setAddError] = useState("")
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    const res  = await fetch("/api/pharmacies-admin-list")
-    const json = await res.json()
-    let data: PharmacieRow[] = json.data ?? []
-    if (tab === "pending")   data = data.filter((p) => !p.isVerified && p.isActive)
-    if (tab === "verified")  data = data.filter((p) => p.isVerified && p.isActive)
-    if (tab === "suspended") data = data.filter((p) => !p.isActive)
-    setPharmacies(data)
-    setLoading(false)
-  }, [tab])
-
-  useEffect(() => { load() }, [load])
+  const { data: pharmacies = [], isLoading: loading } = useQuery<PharmacieRow[]>({
+    queryKey: ["admin-pharmacies", tab],
+    queryFn:  async () => {
+      const res  = await fetch("/api/pharmacies-admin-list")
+      const json = await res.json()
+      let data: PharmacieRow[] = json.data ?? []
+      if (tab === "pending")   data = data.filter((p) => !p.isVerified && p.isActive)
+      if (tab === "verified")  data = data.filter((p) => p.isVerified && p.isActive)
+      if (tab === "suspended") data = data.filter((p) => !p.isActive)
+      return data
+    },
+  })
 
   async function verify(id: string) {
     setActing(id)
     await fetch(`/api/pharmacies/${id}/verify`, { method: "POST" })
-    setActing(null); await load()
+    setActing(null)
+    queryClient.invalidateQueries({ queryKey: ["admin-pharmacies"] })
   }
 
   async function suspend(id: string, userId: string) {
     setActing(id)
     await fetch(`/api/admin/users/${userId}/suspend`, { method: "POST" })
-    setActing(null); await load()
+    setActing(null)
+    queryClient.invalidateQueries({ queryKey: ["admin-pharmacies"] })
   }
 
   async function reactivate(id: string, userId: string) {
     setActing(id)
     await fetch(`/api/admin/users/${userId}/reactivate`, { method: "POST" })
-    setActing(null); await load()
+    setActing(null)
+    queryClient.invalidateQueries({ queryKey: ["admin-pharmacies"] })
   }
 
   async function addPharmacie() {
@@ -76,7 +78,7 @@ export default function AdminPharmaciesPage() {
     if (!res.ok) { setAddError(json.error ?? "Erreur"); return }
     setShowAdd(false)
     setAddForm({ email: "", telephone: "", nomPharmacie: "", numeroLicence: "", adresse: "", quartier: "", accepteLivraison: false })
-    await load()
+    queryClient.invalidateQueries({ queryKey: ["admin-pharmacies"] })
     alert(`Pharmacie créée ! Mot de passe temporaire : ${json.data?.tempPassword}`)
   }
 

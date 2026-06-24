@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react"
 import { Bell, X } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { fr } from "date-fns/locale"
+import { getPusherClient } from "@/lib/pusher-client"
+import { useSession } from "next-auth/react"
 
 type Notif = {
   id:        string
@@ -15,6 +17,7 @@ type Notif = {
 }
 
 export function NotificationBell() {
+  const { data: session } = useSession()
   const [open,   setOpen]   = useState(false)
   const [notifs, setNotifs] = useState<Notif[]>([])
   const [unread, setUnread] = useState(0)
@@ -52,9 +55,31 @@ export function NotificationBell() {
 
   useEffect(() => {
     load()
-    const interval = setInterval(load, 30_000) // polling toutes les 30s
-    return () => clearInterval(interval)
+    // Fallback polling réduit (2 min) — Pusher est la source principale
+    const fallback = setInterval(load, 120_000)
+    return () => clearInterval(fallback)
   }, [])
+
+  // Pusher : écoute sur le canal propre à l'utilisateur
+  useEffect(() => {
+    if (!session?.user?.id) return
+    const pusher = getPusherClient()
+    if (!pusher) return
+    const role = session.user.role as string
+    let channelName: string
+    if (role === "MEDECIN")           channelName = `private-doctor-${session.user.id}`
+    else if (role === "PATIENT")      channelName = `private-patient-${session.user.id}`
+    else if (role === "SUPER_ADMIN")  channelName = "private-admin-notifications"
+    else if (role === "CALL_CENTER_AGENT") channelName = "private-call-center-inbox"
+    else return
+    const ch = pusher.subscribe(channelName)
+    ch.bind("notification-bell-update",   load)
+    ch.bind("appointment-status-changed", load)
+    ch.bind("presentiel-status-changed",  load)
+    ch.bind("appointment-approved",       load)
+    ch.bind("new-approval-request",       load)
+    return () => { pusher.unsubscribe(channelName) }
+  }, [session?.user?.id, session?.user?.role])
 
   // Fermer en cliquant en dehors
   useEffect(() => {

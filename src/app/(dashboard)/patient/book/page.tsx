@@ -24,6 +24,18 @@ function getMinDatetime(): string {
   return new Date(Date.now() + 5 * 60 * 1000).toISOString().slice(0, 16)
 }
 
+function safeDate(str: string | null | undefined): Date | null {
+  if (!str) return null
+  const d = new Date(str)
+  return isNaN(d.getTime()) ? null : d
+}
+
+function formatSlot(str: string | null | undefined): string {
+  const d = safeDate(str)
+  if (!d) return "—"
+  return `${d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} à ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
+}
+
 export default function BookPage() {
   const router = useRouter()
   const [step,              setStep]             = useState(0)
@@ -87,7 +99,7 @@ export default function BookPage() {
   }
 
   async function searchDoctors() {
-    if (!findDatetime) { setError("Veuillez choisir une date et une heure."); return }
+    if (!findDatetime || !safeDate(findDatetime)) { setError("Veuillez choisir une date et une heure valide."); return }
     setFindLoading(true)
     setFindSearched(false)
     setError("")
@@ -134,6 +146,16 @@ export default function BookPage() {
 
   async function submit() {
     if (!reason.trim() || reason.length < 10) { setError("Le motif doit contenir au moins 10 caractères."); return }
+
+    // Validation de la date avant tout appel API
+    if (type !== "INSTANT") {
+      const rawDate = type === "FIND" ? findDatetime : selectedSlot
+      if (!safeDate(rawDate)) {
+        setError("La date et l'heure sélectionnées sont invalides. Veuillez revenir à l'étape précédente et resélectionner.")
+        return
+      }
+    }
+
     setLoading(true)
     setError("")
     try {
@@ -143,7 +165,7 @@ export default function BookPage() {
       const scheduledAt = isInstant
         ? new Date(Date.now() + 5 * 60 * 1000).toISOString()
         : type === "FIND"
-        ? new Date(findDatetime).toISOString()
+        ? safeDate(findDatetime)!.toISOString()
         : selectedSlot!
 
       const url  = isPresentiel ? "/api/presentiel" : "/api/appointments"
@@ -450,12 +472,12 @@ export default function BookPage() {
                   ? `${findResults.length} médecin${findResults.length > 1 ? "s" : ""} disponible${findResults.length > 1 ? "s" : ""}`
                   : "Aucun résultat"}
               </h2>
-              {findSearched && (
+              {findSearched && safeDate(findDatetime) && (
                 <p className="text-xs text-gray-400">
                   {findConsultType === "VIDEO" ? "Vidéo" : "Présentiel"} ·{" "}
-                  {new Date(findDatetime).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}
+                  {safeDate(findDatetime)!.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}
                   {" "}
-                  {new Date(findDatetime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                  {safeDate(findDatetime)!.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                 </p>
               )}
             </div>
@@ -494,16 +516,17 @@ export default function BookPage() {
               value={customDatetime}
               onChange={(e) => {
                 setCustomDatetime(e.target.value)
-                setSelectedSlot(e.target.value ? new Date(e.target.value).toISOString() : null)
+                const d = safeDate(e.target.value)
+                setSelectedSlot(d ? d.toISOString() : null)
               }}
               className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm focus:border-blue-600 focus:outline-none"
             />
-            {customDatetime && (
+            {customDatetime && safeDate(customDatetime) && (
               <p className="mt-3 text-sm font-medium text-blue-600">
                 ✓{" "}
-                {new Date(customDatetime).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+                {safeDate(customDatetime)!.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
                 {" à "}
-                {new Date(customDatetime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                {safeDate(customDatetime)!.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
               </p>
             )}
           </div>
@@ -536,10 +559,8 @@ export default function BookPage() {
                   {type === "INSTANT"
                     ? "Dans environ 5 minutes"
                     : type === "FIND"
-                    ? `${new Date(findDatetime).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} à ${new Date(findDatetime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
-                    : selectedSlot
-                    ? `${new Date(selectedSlot).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} à ${new Date(selectedSlot).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
-                    : "—"
+                    ? formatSlot(findDatetime)
+                    : formatSlot(selectedSlot)
                   }
                 </span>
               </div>
@@ -607,12 +628,15 @@ export default function BookPage() {
                   : <>Continuer <ArrowRight className="h-4 w-4" /></>
                 }
               </Button>
-            ) : (
-              <Button loading={loading} onClick={submit}>
-                <Check className="h-4 w-4" />
-                {type === "INSTANT" ? "Démarrer la consultation" : "Envoyer la demande"}
-              </Button>
-            )
+            ) : (() => {
+              const dateInvalid = type !== "INSTANT" && !safeDate(type === "FIND" ? findDatetime : selectedSlot)
+              return (
+                <Button loading={loading} onClick={submit} disabled={dateInvalid}>
+                  <Check className="h-4 w-4" />
+                  {type === "INSTANT" ? "Démarrer la consultation" : "Envoyer la demande"}
+                </Button>
+              )
+            })()
           )}
         </div>
       </div>

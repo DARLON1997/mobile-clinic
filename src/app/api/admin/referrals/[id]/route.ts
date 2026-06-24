@@ -8,13 +8,13 @@ import {
 
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
   if (session?.user.role !== "SUPER_ADMIN")
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
 
-  const { id } = params
+  const { id } = await params
 
   const patient = await prisma.user.findUnique({
     where:  { id, role: "PATIENT" },

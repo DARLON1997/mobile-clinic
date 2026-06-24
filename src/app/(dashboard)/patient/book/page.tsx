@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { cn, formatXAF } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import { FEATURES } from "@/lib/features"
 import { getPusherClient } from "@/lib/pusher-client"
 import { SPECIALITIES, SPECIALITY_LABELS } from "@/lib/specialities"
@@ -476,14 +476,9 @@ export default function BookPage() {
                           </p>
                         )}
                       </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-sm font-semibold text-blue-700">
-                          {formatXAF(doc.consultationFee)}
-                        </p>
-                        {selectedDoctor?.id === doc.id && (
-                          <Check className="ml-auto mt-0.5 h-4 w-4 text-blue-600" />
-                        )}
-                      </div>
+                      {selectedDoctor?.id === doc.id && (
+                        <Check className="h-4 w-4 shrink-0 text-blue-600" />
+                      )}
                     </div>
                   </button>
                 ))}
@@ -522,12 +517,6 @@ export default function BookPage() {
                   {type === "INSTANT" ? "Dans environ 5 minutes" : formatSlot(selectedSlot)}
                 </span>
               </div>
-              {selectedDoctor && (
-                <div className="flex justify-between border-t border-gray-200 pt-2 font-semibold">
-                  <span>Tarif</span>
-                  <span className="text-blue-700">{formatXAF(selectedDoctor.consultationFee)}</span>
-                </div>
-              )}
             </div>
 
             {type === "INSTANT" ? (

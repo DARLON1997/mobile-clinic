@@ -184,6 +184,11 @@ model User {
 
   referrer        User?     @relation("ReferralChain", fields: [referredById], references: [id])
   referrals       User[]    @relation("ReferralChain")
+
+  // Traçabilité CDR (Call Detail Record)
+  totalConnections  Int       @default(0)
+  lastConnectionAt  DateTime?
+  connectionLogs    ConnectionLog[] @relation("UserConnections")
   pointsReceived  ReferralPointTransaction[] @relation("PointsBeneficiary")
   pointsTriggered ReferralPointTransaction[] @relation("PointsTriggeredBy")
 
@@ -997,6 +1002,26 @@ model DoctorAvailability {
 // MODEL : Planning hebdomadaire récurrent médecin
 // (consultation instantanée + nouveau parcours patient)
 // ─────────────────────────────────────────────────
+// ─────────────────────────────────────────────────
+// MODEL : Registre CDR — une ligne par connexion réussie
+// Jamais effacé, jamais écrasé (immuable par convention).
+// ─────────────────────────────────────────────────
+model ConnectionLog {
+  id                     String   @id @default(cuid())
+  userId                 String
+  connectedAt            DateTime @default(now())
+  ipAddress              String?
+  userAgent              String?
+  sessionDurationSeconds Int?
+
+  user User @relation("UserConnections", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([connectedAt])
+}
+
+// ─────────────────────────────────────────────────
+// MODEL : Planning hebdomadaire récurrent médecin
 model DoctorWeeklySchedule {
   id        String                @id @default(cuid())
   doctorId  String

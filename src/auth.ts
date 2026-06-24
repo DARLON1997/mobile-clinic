@@ -6,6 +6,7 @@ import type { Role } from "@prisma/client"
 import { checkLoginLimit } from "@/lib/rate-limit"
 import { authConfig } from "./auth.config"
 import { distributeReferralPoints } from "@/lib/distribute-referral-points"
+import { logUserConnection }       from "@/lib/log-connection"
 
 const otpSchema = z.object({
   email: z.string().email(),
@@ -77,6 +78,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { id: user.id },
           data:  { otpCode: null, otpExpiry: null, lastLoginAt: new Date() },
         })
+
+        // Registre CDR : enregistrer chaque connexion réussie (tous rôles)
+        logUserConnection(user.id).catch((err) => console.error("[CDR]", err))
 
         // Parrainage : distribuer les points à la 1ère connexion (non-bloquant)
         distributeReferralPoints(user.id).catch((err) => console.error("[REFERRAL]", err))

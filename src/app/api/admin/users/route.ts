@@ -1,9 +1,10 @@
-import { auth } from "@/auth"
-import { prisma } from "@/lib/prisma"
-import { NextResponse } from "next/server"
-import { z } from "zod"
-import bcrypt from "bcryptjs"
-import type { MedicalSpeciality } from "@prisma/client"
+import { auth }                        from "@/auth"
+import { prisma }                      from "@/lib/prisma"
+import { NextResponse }                from "next/server"
+import { z }                           from "zod"
+import bcrypt                          from "bcryptjs"
+import { buildDefaultScheduleEntries } from "@/lib/default-schedules"
+import type { MedicalSpeciality }      from "@prisma/client"
 
 const BaseSchema = z.object({
   email:    z.string().email(),
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
   }
 
-  const body = await req.json()
+  const body   = await req.json()
   const parsed = (body.role === "MEDECIN" ? DoctorSchema : BaseSchema).safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: "Données invalides", details: parsed.error.flatten() }, { status: 400 })
@@ -58,17 +59,32 @@ export async function POST(req: Request) {
 
     if (role === "MEDECIN") {
       const d = parsed.data as z.infer<typeof DoctorSchema>
+      const speciality = d.speciality as MedicalSpeciality
+
       await tx.doctorProfile.create({
         data: {
-          userId:          created.id,
-          firstName:       d.firstName,
-          lastName:        d.lastName,
-          speciality:      d.speciality as MedicalSpeciality,
-          licenseNumber:   d.licenseNumber,
-          consultationFee: d.consultationFee,
+          userId:            created.id,
+          firstName:         d.firstName,
+          lastName:          d.lastName,
+          speciality,
+          licenseNumber:     d.licenseNumber,
+          consultationFee:   d.consultationFee,
           isVerifiedByAdmin: true,
         },
       })
+
+      // Appliquer le planning par défaut selon la spécialité :
+      //   GYNECOLOGUE → VIDEO 7j/7 14h-19h + PRÉSENTIEL lun-sam 8h-14h (automatique)
+      //   GENERALISTE → aucune entrée nécessaire (toujours disponible par règle)
+      //   Autres      → configuration manuelle via /admin/medecins/[id]/planning
+      const scheduleEntries = buildDefaultScheduleEntries(created.id, speciality)
+      for (const entry of scheduleEntries) {
+        await tx.doctorWeeklySchedule.upsert({
+          where:  { doctorId_jour_type: { doctorId: entry.doctorId, jour: entry.jour, type: entry.type } },
+          update: { startTime: entry.startTime, endTime: entry.endTime, isActive: entry.isActive },
+          create: entry,
+        })
+      }
     }
 
     await tx.auditLog.create({

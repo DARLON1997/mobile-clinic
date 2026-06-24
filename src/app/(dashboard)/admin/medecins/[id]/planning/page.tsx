@@ -144,7 +144,24 @@ export default function PlanningPage() {
         <div className="flex justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-[#C8906A]" />
         </div>
-      ) : (
+      ) : doctor?.doctorProfile?.speciality === "GENERALISTE" ? (
+        <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-6 text-center">
+          <p className="text-sm font-semibold text-green-400">
+            ✓ Disponibilité automatique — aucune configuration requise
+          </p>
+          <p className="mt-2 text-xs text-[#888888]">
+            Les médecins <strong className="text-[#AAAAAA]">généralistes</strong> sont automatiquement
+            disponibles à tout moment, pour tous les types de consultation (instantanée, vidéo, présentiel).
+            Aucune entrée de planning n&apos;est nécessaire.
+          </p>
+          <p className="mt-3 text-xs text-[#555555]">
+            Vous pouvez tout de même configurer des créneaux ci-dessous si vous souhaitez restreindre
+            les horaires de ce généraliste en particulier.
+          </p>
+        </div>
+      ) : null}
+
+      {!loading && (
         <div className="overflow-x-auto rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F]">
           <table className="w-full text-sm">
             <thead>

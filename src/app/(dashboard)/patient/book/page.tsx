@@ -8,9 +8,10 @@ import { FEATURES } from "@/lib/features"
 import { getPusherClient } from "@/lib/pusher-client"
 import { SPECIALITIES, SPECIALITY_LABELS } from "@/lib/specialities"
 import { DateTimePicker } from "@/components/shared/DateTimePicker"
+import { getAvailabilityHint } from "@/lib/default-schedules"
 import {
   Video, Home, TestTube2, Building2, Zap,
-  ArrowLeft, ArrowRight, Check, Clock, MapPin, Loader2,
+  ArrowLeft, ArrowRight, Check, Clock, MapPin, Loader2, MessageCircle,
 } from "lucide-react"
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -58,34 +59,43 @@ const SERVICES: {
 export default function BookPage() {
   const router = useRouter()
 
-  // ── étape courante ──
-  const [step, setStep] = useState(0)
-
-  // ── step 0 : type ──
-  const [type, setType] = useState<ServiceType | null>(null)
-
-  // ── step 1 : date & heure ──
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
-
-  // ── step 2 : médecin ──
+  const [step,           setStep]          = useState(0)
+  const [type,           setType]          = useState<ServiceType | null>(null)
+  const [selectedSlot,   setSelectedSlot]  = useState<string | null>(null)
   const [doctors,        setDoctors]       = useState<Doctor[]>([])
   const [docLoading,     setDocLoading]    = useState(false)
   const [speciality,     setSpeciality]    = useState("ALL")
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
+  const [reason,         setReason]        = useState("")
+  const [loading,        setLoading]       = useState(false)
+  const [error,          setError]         = useState("")
+  const [done,           setDone]          = useState(false)
+  const [appointmentId,  setAppointmentId] = useState<string | null>(null)
+  const [patientId,      setPatientId]     = useState<string | null>(null)
 
-  // ── step 3 : confirmation ──
-  const [reason,        setReason]       = useState("")
-  const [loading,       setLoading]      = useState(false)
-  const [error,         setError]        = useState("")
-  const [done,          setDone]         = useState(false)
-  const [appointmentId, setAppointmentId] = useState<string | null>(null)
-  const [patientId,     setPatientId]    = useState<string | null>(null)
-
-  // ── chargement des médecins (dès que le type est choisi) ──
-  const loadDoctors = useCallback(async (svcType: ServiceType) => {
+  // ── chargement des médecins ──────────────────────────────────────────────
+  //   slot : ISO string du créneau choisi (undefined si non pertinent)
+  //   Pour VIDEO/PRESENTIEL : transmettre le slot → filtre réel par créneau
+  //   Pour INSTANT          : availableNow=true → planning hebdo
+  //   Pour CARE/SAMPLING    : aucun filtre de planning (visite à domicile)
+  const loadDoctors = useCallback(async (svcType: ServiceType, slot?: string | null) => {
     setDocLoading(true)
+    setDoctors([])
     try {
-      const url  = svcType === "INSTANT" ? "/api/doctors?availableNow=true" : "/api/doctors"
+      let url: string
+      if (svcType === "INSTANT") {
+        url = "/api/doctors?availableNow=true"
+      } else if (
+        (svcType === "VIDEO" || svcType === "PRESENTIEL") &&
+        slot && safeDate(slot)
+      ) {
+        // Filtrage réel : seuls les médecins disponibles au créneau sélectionné
+        const apiType = svcType === "VIDEO" ? "VIDEO" : "PRESENTIEL"
+        url = `/api/doctors?type=${apiType}&scheduledAt=${encodeURIComponent(slot)}`
+      } else {
+        url = "/api/doctors"
+      }
+
       const res  = await fetch(url)
       if (!res.ok) return
       const json = await res.json()
@@ -111,33 +121,43 @@ export default function BookPage() {
     finally  { setDocLoading(false) }
   }, [])
 
-  useEffect(() => { if (type) loadDoctors(type) }, [type, loadDoctors])
+  // Pré-chargement pour INSTANT, CARE et SAMPLING (pas besoin du slot)
+  useEffect(() => {
+    if (type === "INSTANT" || type === "CARE" || type === "SAMPLING") {
+      loadDoctors(type)
+    }
+  }, [type, loadDoctors])
 
-  // ── navigation ──
+  // ── navigation ──────────────────────────────────────────────────────────
   function handleNext() {
     setError("")
     if (step === 0) {
       if (!type) { setError("Veuillez choisir un type de service."); return }
-      setStep(type === "INSTANT" ? 2 : 1)   // INSTANT saute date/heure
+      setStep(type === "INSTANT" ? 2 : 1)
       return
     }
     if (step === 1) {
       if (!safeDate(selectedSlot)) { setError("Veuillez sélectionner un jour et une heure."); return }
-      setStep(2); return
+      // Charger les médecins avec le créneau maintenant connu
+      if (type === "VIDEO" || type === "PRESENTIEL") {
+        loadDoctors(type, selectedSlot)
+      }
+      setStep(2)
+      return
     }
     if (step === 2) {
       if (!selectedDoctor) { setError("Veuillez choisir un médecin."); return }
-      setStep(3); return
+      setStep(3)
+      return
     }
   }
 
   function handleBack() {
     setError("")
-    // INSTANT : step 2 → step 0 (step 1 = date est sauté)
     setStep(s => (type === "INSTANT" && s === 2) ? 0 : s - 1)
   }
 
-  // ── soumission ──
+  // ── soumission ───────────────────────────────────────────────────────────
   async function submit() {
     if (!reason.trim() || reason.length < 10) {
       setError("Le motif doit contenir au moins 10 caractères.")
@@ -147,8 +167,7 @@ export default function BookPage() {
       setError("La date et l'heure sont invalides. Revenez à l'étape précédente.")
       return
     }
-    setLoading(true)
-    setError("")
+    setLoading(true); setError("")
     try {
       const isPresentiel = type === "PRESENTIEL"
       const isInstant    = type === "INSTANT"
@@ -169,12 +188,10 @@ export default function BookPage() {
       setDone(true)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur lors de la création du rendez-vous.")
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
-  // ── Pusher : redirection auto après approbation instantanée ──
+  // ── Pusher : redirection auto après approbation instantanée ──────────────
   useEffect(() => {
     if (!done || type !== "INSTANT" || !appointmentId || !patientId) return
     const pusher = getPusherClient()
@@ -186,7 +203,7 @@ export default function BookPage() {
     return () => { pusher.unsubscribe(`private-patient-${patientId}`) }
   }, [done, type, appointmentId, patientId, router])
 
-  // ─── écrans "terminé" ────────────────────────────────────────────────────────
+  // ─── écrans "terminé" ─────────────────────────────────────────────────────
 
   if (done && type === "INSTANT") return (
     <div className="mx-auto max-w-md py-12 text-center">
@@ -238,24 +255,27 @@ export default function BookPage() {
     </div>
   )
 
-  // ─── liste filtrée ────────────────────────────────────────────────────────────
+  // ─── liste filtrée ────────────────────────────────────────────────────────
 
   const filteredDoctors = doctors
     .filter(d => speciality === "ALL" || d.speciality === speciality)
-    .filter(d => type !== "PRESENTIEL"  || !!d.cabinetId)
+    .filter(d => type !== "PRESENTIEL" || !!d.cabinetId)
 
-  // ─── stepper labels ───────────────────────────────────────────────────────────
+  // Hint de disponibilité contextuel (étape 1 et étape 2)
+  const scheduleHint = type && type !== "INSTANT"
+    ? getAvailabilityHint(speciality, type)
+    : undefined
 
   const STEP_LABELS = ["Service", "Date & Heure", "Médecin", "Confirmer"]
 
-  // ─── rendu principal ──────────────────────────────────────────────────────────
+  // ─── rendu principal ──────────────────────────────────────────────────────
 
   return (
     <div className="mx-auto max-w-xl">
-      {/* En-tête */}
+      {/* En-tête + stepper */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Prendre un rendez-vous</h1>
-        <div className="mt-3 flex items-center gap-2 flex-wrap">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           {STEP_LABELS.map((label, i) => {
             const skipped = type === "INSTANT" && i === 1
             return (
@@ -281,12 +301,11 @@ export default function BookPage() {
 
       <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
 
-        {/* Bandeau erreur */}
         {error && (
           <div className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</div>
         )}
 
-        {/* ── ÉTAPE 0 : Service ─────────────────────────────────────────────── */}
+        {/* ── ÉTAPE 0 : Service ─────────────────────────────────────────── */}
         {step === 0 && (
           <div className="space-y-3">
             <h2 className="text-base font-semibold text-gray-900">Type de consultation</h2>
@@ -300,10 +319,10 @@ export default function BookPage() {
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <div className={cn("rounded-lg p-2 shrink-0", type === value ? "bg-blue-100" : "bg-gray-100")}>
+                  <div className={cn("shrink-0 rounded-lg p-2", type === value ? "bg-blue-100" : "bg-gray-100")}>
                     <Icon className={cn("h-5 w-5", type === value ? "text-blue-600" : "text-gray-500")} />
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="font-medium text-gray-900">{label}</p>
                     <p className="text-xs text-gray-400">{desc}</p>
                   </div>
@@ -312,17 +331,40 @@ export default function BookPage() {
                       {badge}
                     </span>
                   )}
-                  {type === value && <Check className="shrink-0 h-4 w-4 text-blue-600" />}
+                  {type === value && <Check className="h-4 w-4 shrink-0 text-blue-600" />}
                 </div>
               </button>
             ))}
           </div>
         )}
 
-        {/* ── ÉTAPE 1 : Date & Heure ────────────────────────────────────────── */}
+        {/* ── ÉTAPE 1 : Date & Heure ────────────────────────────────────── */}
         {step === 1 && (
           <div>
             <h2 className="mb-1 text-base font-semibold text-gray-900">Date & Heure</h2>
+
+            {/* Hint contextuel basé sur le type de service */}
+            {type === "VIDEO" && (
+              <p className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                💡 Généralistes : disponibles à toute heure. Spécialistes : selon leur planning hebdomadaire.
+              </p>
+            )}
+            {type === "PRESENTIEL" && (
+              <p className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                💡 Consultations en cabinet généralement du lundi au samedi, horaires variables selon le médecin.
+              </p>
+            )}
+            {type === "CARE" && (
+              <p className="mb-3 rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700">
+                💡 Nos agents interviennent à domicile 7j/7. L&apos;heure est indicative.
+              </p>
+            )}
+            {type === "SAMPLING" && (
+              <p className="mb-3 rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700">
+                💡 Prélèvements à domicile disponibles tous les jours. L&apos;heure est indicative.
+              </p>
+            )}
+
             <p className="mb-4 text-xs text-gray-400">
               Sélectionnez un jour dans le calendrier, puis choisissez l&apos;heure.
             </p>
@@ -334,7 +376,7 @@ export default function BookPage() {
           </div>
         )}
 
-        {/* ── ÉTAPE 2 : Médecin ─────────────────────────────────────────────── */}
+        {/* ── ÉTAPE 2 : Médecin ─────────────────────────────────────────── */}
         {step === 2 && (
           <div>
             <h2 className="mb-3 text-base font-semibold text-gray-900">Choisir un médecin</h2>
@@ -342,7 +384,7 @@ export default function BookPage() {
             {type === "INSTANT" && (
               <div className="mb-3 flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 p-3">
                 <Zap className="h-4 w-4 shrink-0 text-orange-500" />
-                <p className="text-xs font-medium text-orange-700">Affichage des médecins disponibles maintenant</p>
+                <p className="text-xs font-medium text-orange-700">Médecins disponibles maintenant</p>
               </div>
             )}
 
@@ -364,19 +406,42 @@ export default function BookPage() {
               ))}
             </div>
 
-            {/* Liste */}
+            {/* Hint de disponibilité selon spécialité + type */}
+            {scheduleHint && (
+              <div className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                {scheduleHint}
+              </div>
+            )}
+
+            {/* Liste des médecins */}
             {docLoading ? (
               <div className="flex justify-center py-10">
                 <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
               </div>
             ) : filteredDoctors.length === 0 ? (
-              <p className="py-10 text-center text-sm text-gray-400">
-                {type === "INSTANT"
-                  ? "Aucun médecin disponible en ce moment. Essayez une consultation en ligne programmée."
-                  : type === "PRESENTIEL"
-                  ? "Aucun médecin avec un cabinet enregistré."
-                  : "Aucun médecin disponible pour cette spécialité."}
-              </p>
+              <div className="py-8 text-center">
+                <p className="text-sm text-gray-400">
+                  {type === "INSTANT"
+                    ? "Aucun médecin disponible en ce moment."
+                    : type === "PRESENTIEL"
+                    ? "Aucun médecin en cabinet disponible pour ce créneau."
+                    : "Aucun médecin disponible pour ce créneau ou cette spécialité."}
+                </p>
+                <a
+                  href="https://wa.me/242067734369"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 transition-colors"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Contacter via WhatsApp
+                </a>
+                {type === "INSTANT" && (
+                  <p className="mt-3 text-xs text-gray-400">
+                    ou essayez une consultation vidéo programmée.
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="max-h-72 space-y-2 overflow-y-auto pr-0.5">
                 {filteredDoctors.map(doc => (
@@ -394,7 +459,7 @@ export default function BookPage() {
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
                         {doc.firstName[0]}{doc.lastName[0]}
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-gray-900">
                           Dr {doc.firstName} {doc.lastName}
                         </p>
@@ -424,11 +489,10 @@ export default function BookPage() {
           </div>
         )}
 
-        {/* ── ÉTAPE 3 : Confirmation ────────────────────────────────────────── */}
+        {/* ── ÉTAPE 3 : Confirmation ────────────────────────────────────── */}
         {step === 3 && (
           <div className="space-y-5">
             <h2 className="text-base font-semibold text-gray-900">Confirmer la demande</h2>
-
             <div className="space-y-2 rounded-xl bg-gray-50 p-4 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Service</span>
@@ -499,7 +563,7 @@ export default function BookPage() {
           </div>
         )}
 
-        {/* ── Navigation ────────────────────────────────────────────────────── */}
+        {/* ── Navigation ───────────────────────────────────────────────── */}
         <div className="mt-6 flex items-center justify-between gap-3">
           {step > 0 ? (
             <Button type="button" variant="ghost" onClick={handleBack}>

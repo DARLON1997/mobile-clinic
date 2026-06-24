@@ -8,12 +8,22 @@ const JOUR_MAP = [
 
 type JourSemaine = typeof JOUR_MAP[number]
 
+// Congo-Brazzaville = WAT (UTC+1), pas de DST.
+// Les créneaux DoctorWeeklySchedule sont stockés en heure locale WAT.
+// Le serveur Vercel tourne en UTC → il faut ajouter +1h avant d'extraire l'heure.
+const WAT_OFFSET_MS = 60 * 60 * 1000
+
+function toWAT(utcDate: Date): Date {
+  return new Date(utcDate.getTime() + WAT_OFFSET_MS)
+}
+
 export function getJourSemaine(date: Date): JourSemaine {
-  return JOUR_MAP[date.getDay()]
+  return JOUR_MAP[toWAT(date).getUTCDay()]
 }
 
 function toHHmm(date: Date): string {
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
+  const wat = toWAT(date)
+  return `${String(wat.getUTCHours()).padStart(2, "0")}:${String(wat.getUTCMinutes()).padStart(2, "0")}`
 }
 
 export async function isDoctorAvailableAt(
@@ -111,14 +121,28 @@ export async function findAvailableDoctors(
 
   // Cas C : aucune spécialité demandée (toutes)
   //   → généralistes TOUJOURS + autres uniquement si planning correspondant
+  //
+  // NB : on NE met pas doctorProfile au top-level car Prisma fusionnerait
+  //      les deux références doctorProfile (top + OR) en un seul EXISTS et
+  //      la condition GENERALISTE n'hériterait pas correctement de isVerifiedByAdmin.
+  //      isVerifiedByAdmin est donc répété explicitement dans chaque branche.
   return prisma.user.findMany({
     where: {
       role:     "MEDECIN",
       isActive: true,
-      doctorProfile: { isVerifiedByAdmin: true },
       OR: [
-        { doctorProfile: { speciality: "GENERALISTE" } },
-        scheduleCondition,
+        // Branche 1 : généralistes vérifiés — toujours disponibles
+        {
+          doctorProfile: {
+            isVerifiedByAdmin: true,
+            speciality:        "GENERALISTE",
+          },
+        },
+        // Branche 2 : tout autre médecin vérifié avec un créneau correspondant
+        {
+          doctorProfile: { isVerifiedByAdmin: true },
+          ...scheduleCondition,
+        },
       ],
       ...cabinetCondition,
     },

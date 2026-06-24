@@ -84,7 +84,9 @@ export default function BookPage() {
     try {
       let url: string
       if (svcType === "INSTANT") {
-        url = "/api/doctors?availableNow=true"
+        // Pour l'instantané tous les médecins vérifiés sont affichés —
+        // c'est l'admin qui dispatche selon la disponibilité réelle.
+        url = "/api/doctors"
       } else if (
         (svcType === "VIDEO" || svcType === "PRESENTIEL") &&
         slot && safeDate(slot)
@@ -384,7 +386,7 @@ export default function BookPage() {
             {type === "INSTANT" && (
               <div className="mb-3 flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 p-3">
                 <Zap className="h-4 w-4 shrink-0 text-orange-500" />
-                <p className="text-xs font-medium text-orange-700">Médecins disponibles maintenant</p>
+                <p className="text-xs font-medium text-orange-700">Choisissez votre médecin — la consultation démarre dans ~5 min après approbation.</p>
               </div>
             )}
 
@@ -422,7 +424,7 @@ export default function BookPage() {
               <div className="py-8 text-center">
                 <p className="text-sm text-gray-400">
                   {type === "INSTANT"
-                    ? "Aucun médecin disponible en ce moment."
+                    ? "Aucun médecin enregistré pour le moment."
                     : type === "PRESENTIEL"
                     ? "Aucun médecin en cabinet disponible pour ce créneau."
                     : "Aucun médecin disponible pour ce créneau ou cette spécialité."}

@@ -3,12 +3,12 @@
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { ArrowLeft, Loader2, Monitor, Smartphone, Tablet, Phone } from "lucide-react"
+import { ArrowLeft, Loader2, Monitor, Smartphone, Tablet, Phone, Gift, Users } from "lucide-react"
 import { STATUS_LABEL, STATUS_COLOR, computeActivityStatus } from "@/lib/patient-activity-status"
 import type { PatientActivityStatus } from "@/lib/patient-activity-status"
 
-// ⚠️ Ce composant ne demande QUE le journal de connexions via l'API Call Center.
-// Il n'y a aucun onglet "Activité médicale" — l'exclusion est structurelle.
+// ⚠️ Règle sécurité : pas d'onglet "Activité médicale" ni de détail de chaîne filleuls.
+// L'onglet Parrainage affiche uniquement totalPoints + nombreFilleulsDirects (chiffres seuls).
 
 type Connexion = { id: string; connectedAt: string; ipAddress: string | null; device: string }
 type Patient   = {
@@ -17,20 +17,39 @@ type Patient   = {
   patientProfile: { firstName: string; lastName: string; city: string } | null
 }
 
+type CCReferralRow = {
+  totalPoints: number
+  nombreFilleulsDirects: number
+}
+
 function DeviceIcon({ device }: { device: string }) {
   if (device === "Mobile")   return <Smartphone size={14} className="text-[#C8906A]" />
   if (device === "Tablette") return <Tablet     size={14} className="text-blue-400" />
   return <Monitor size={14} className="text-[#888]" />
 }
 
+type TabKey = "identite" | "journal" | "parrainage"
+
 export default function CallCenterPatientDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router  = useRouter()
-  const [tab,   setTab] = useState<"identite" | "journal">("identite")
+  const [tab,   setTab] = useState<TabKey>("identite")
 
   const { data, isLoading } = useQuery<{ patient: Patient; connexions: Connexion[] }>({
     queryKey: ["cc-patient-detail", id],
     queryFn:  () => fetch(`/api/call-center/patients/${id}/journal`).then(r => r.json()),
+  })
+
+  // Récupère les stats parrainage de la liste CC (filtrée sur ce patient)
+  const { data: refData, isLoading: refLoading } = useQuery<CCReferralRow | null>({
+    queryKey: ["cc-referral-patient", id],
+    queryFn:  async () => {
+      const res  = await fetch(`/api/call-center/referrals?limit=1000`)
+      const json = await res.json()
+      const row = (json.patients ?? []).find((p: { id: string }) => p.id === id)
+      return row ?? null
+    },
+    enabled: tab === "parrainage",
   })
 
   if (isLoading) return (
@@ -42,17 +61,21 @@ export default function CallCenterPatientDetailPage() {
   const { patient, connexions } = data ?? {}
   if (!patient) return <div className="py-16 text-center text-[#666]">Patient introuvable.</div>
 
-  const status = computeActivityStatus(patient.lastConnectionAt ? new Date(patient.lastConnectionAt) : null) as PatientActivityStatus
+  const status = computeActivityStatus(
+    patient.lastConnectionAt ? new Date(patient.lastConnectionAt) : null
+  ) as PatientActivityStatus
 
   const TABS = [
-    { key: "identite", label: "Identité" },
-    { key: "journal",  label: `Journal de connexions (${connexions?.length ?? 0})` },
+    { key: "identite",   label: "Identité" },
+    { key: "journal",    label: `Journal de connexions (${connexions?.length ?? 0})` },
+    { key: "parrainage", label: "🎁 Parrainage" },
     // ⚠️ PAS d'onglet "Activité médicale" — volontairement absent pour Call Center
   ] as const
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <button onClick={() => router.back()} className="flex items-center gap-1.5 text-sm text-[#666] hover:text-white transition-colors">
+      <button onClick={() => router.back()}
+        className="flex items-center gap-1.5 text-sm text-[#666] hover:text-white transition-colors">
         <ArrowLeft size={16} /> Retour
       </button>
 
@@ -81,12 +104,12 @@ export default function CallCenterPatientDetailPage() {
         </a>
       </div>
 
-      <div className="flex gap-1 border-b border-[#2A2A2A]">
+      <div className="flex gap-1 border-b border-[#2A2A2A] overflow-x-auto">
         {TABS.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            className="px-4 py-2.5 text-sm font-medium transition-colors"
+            className="whitespace-nowrap px-4 py-2.5 text-sm font-medium transition-colors"
             style={{
               color:        tab === key ? "#C8906A" : "#666",
               borderBottom: tab === key ? "2px solid #C8906A" : "2px solid transparent",
@@ -126,14 +149,48 @@ export default function CallCenterPatientDetailPage() {
                 <div key={c.id} className="flex items-center gap-4 px-5 py-3.5">
                   <DeviceIcon device={c.device} />
                   <div className="flex-1">
-                    <p className="text-sm text-white">
-                      {new Date(c.connectedAt).toLocaleString("fr-FR")}
-                    </p>
+                    <p className="text-sm text-white">{new Date(c.connectedAt).toLocaleString("fr-FR")}</p>
                     <p className="text-[11px] text-[#555]">{c.device} — {c.ipAddress ?? "IP inconnue"}</p>
                   </div>
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {tab === "parrainage" && (
+        <div className="space-y-4">
+          {refLoading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-[#C8906A]" />
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-[rgba(200,144,106,0.3)] bg-[rgba(200,144,106,0.05)] p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Gift className="h-4 w-4 text-[#C8906A]" />
+                    <p className="text-[11px] text-[#C8906A]/70">Points de parrainage</p>
+                  </div>
+                  <p className="text-3xl font-bold text-[#C8906A]">
+                    {refData ? refData.totalPoints.toFixed(2) : "0.00"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-[#2A2A2A] bg-[#141414] p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="h-4 w-4 text-blue-400" />
+                    <p className="text-[11px] text-[#666]">Filleuls directs</p>
+                  </div>
+                  <p className="text-3xl font-bold text-white">
+                    {refData ? refData.nombreFilleulsDirects : 0}
+                  </p>
+                </div>
+              </div>
+              <p className="text-[11px] text-[#555] text-center">
+                Vue allégée — le détail de la chaîne n'est pas accessible depuis le Call Center.
+              </p>
+            </>
           )}
         </div>
       )}

@@ -31,6 +31,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { href: "/admin/nursing-cares",  label: "Soins infirmiers", icon: Syringe },
     { href: "/admin/elderly-cares",  label: "Soins seniors",    icon: Users },
     { href: "/admin/pharmacies",     label: "Pharmacies",       icon: Store },
+    { href: "/admin/referrals",      label: "Parrainage",       icon: Gift },
     { href: "/admin/finances",       label: "Finances",         icon: DollarSign },
     { href: "/admin/audit",          label: "Journal d'audit",  icon: ScrollText },
   ],
@@ -63,6 +64,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { href: "/call-center/chats",            label: "Conversations",    icon: MessageCircle },
     { href: "/call-center/ordonnances",      label: "Ordonnances",      icon: Pill },
     { href: "/call-center/doctors",          label: "Répertoire",       icon: BookUser },
+    { href: "/call-center/referrals",        label: "Parrainage",       icon: Gift },
   ],
   AGENT_TERRAIN: [
     { href: "/agent", label: "Mes missions", icon: MapPin },

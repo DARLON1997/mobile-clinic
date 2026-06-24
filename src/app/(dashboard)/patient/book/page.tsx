@@ -11,6 +11,7 @@ import {
   Video, Home, TestTube2, Building2, Zap, ArrowLeft, ArrowRight, Check,
   Clock, CreditCard, MapPin, Search, MessageCircle, Loader2,
 } from "lucide-react"
+import { DateTimePicker } from "@/components/shared/DateTimePicker"
 
 type Doctor = {
   id: string; firstName: string; lastName: string; speciality: string; consultationFee: number
@@ -20,9 +21,6 @@ type Doctor = {
 
 type ServiceType = "VIDEO" | "CARE" | "SAMPLING" | "PRESENTIEL" | "INSTANT" | "FIND"
 
-function getMinDatetime(): string {
-  return new Date(Date.now() + 5 * 60 * 1000).toISOString().slice(0, 16)
-}
 
 function safeDate(str: string | null | undefined): Date | null {
   if (!str) return null
@@ -46,7 +44,6 @@ export default function BookPage() {
   const [lastLoadedType,    setLastLoadedType]   = useState<ServiceType | null>(null)
   const [selectedDoctor,    setSelectedDoctor]   = useState<Doctor | null>(null)
   const [specialityFilter,  setSpecialityFilter] = useState("ALL")
-  const [customDatetime,    setCustomDatetime]   = useState("")
   const [selectedSlot,      setSelectedSlot]     = useState<string | null>(null)
 
   // État spécifique au parcours FIND
@@ -409,12 +406,10 @@ export default function BookPage() {
             {/* Date et heure */}
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">Date et heure souhaitées</label>
-              <input
-                type="datetime-local"
-                min={getMinDatetime()}
-                value={findDatetime}
-                onChange={(e) => setFindDatetime(e.target.value)}
-                className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm focus:border-blue-600 focus:outline-none"
+              <DateTimePicker
+                value={safeDate(findDatetime)}
+                onChange={(d) => setFindDatetime(d.toISOString())}
+                minDate={new Date(Date.now() + 5 * 60 * 1000)}
               />
             </div>
           </div>
@@ -503,32 +498,18 @@ export default function BookPage() {
           </div>
         )}
 
-        {/* ÉTAPE 2 — Date / Heure libre (VIDEO et PRESENTIEL uniquement) */}
+        {/* ÉTAPE 2 — Date / Heure (VIDEO et PRESENTIEL) */}
         {step === 2 && (type === "VIDEO" || type === "PRESENTIEL") && (
           <div>
             <h2 className="mb-1 text-base font-semibold text-gray-900">Date et heure souhaitées</h2>
-            <p className="mb-5 text-xs text-gray-400">
-              Choisissez librement la date et l&apos;heure de votre consultation (min. 5 min dans le futur).
+            <p className="mb-4 text-xs text-gray-400">
+              Sélectionnez un jour dans le calendrier, puis choisissez l&apos;heure.
             </p>
-            <input
-              type="datetime-local"
-              min={getMinDatetime()}
-              value={customDatetime}
-              onChange={(e) => {
-                setCustomDatetime(e.target.value)
-                const d = safeDate(e.target.value)
-                setSelectedSlot(d ? d.toISOString() : null)
-              }}
-              className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm focus:border-blue-600 focus:outline-none"
+            <DateTimePicker
+              value={safeDate(selectedSlot)}
+              onChange={(d) => setSelectedSlot(d.toISOString())}
+              minDate={new Date(Date.now() + 5 * 60 * 1000)}
             />
-            {customDatetime && safeDate(customDatetime) && (
-              <p className="mt-3 text-sm font-medium text-blue-600">
-                ✓{" "}
-                {safeDate(customDatetime)!.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
-                {" à "}
-                {safeDate(customDatetime)!.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-              </p>
-            )}
           </div>
         )}
 

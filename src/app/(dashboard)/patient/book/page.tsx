@@ -9,6 +9,7 @@ import { getPusherClient } from "@/lib/pusher-client"
 import { SPECIALITIES, SPECIALITY_LABELS } from "@/lib/specialities"
 import { DateTimePicker } from "@/components/shared/DateTimePicker"
 import { getAvailabilityHint } from "@/lib/default-schedules"
+import { buildWhatsAppLink }   from "@/lib/contact-constants"
 import {
   Video, Home, TestTube2, Building2, Zap,
   ArrowLeft, ArrowRight, Check, Clock, MapPin, Loader2, MessageCircle,
@@ -430,9 +431,9 @@ export default function BookPage() {
                     : "Aucun médecin disponible pour ce créneau ou cette spécialité."}
                 </p>
                 <a
-                  href="https://wa.me/242067734369"
+                  href={buildWhatsAppLink("Bonjour, aucun médecin n'est disponible pour mon créneau. Pouvez-vous m'aider ?")}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="mt-4 inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 transition-colors"
                 >
                   <MessageCircle className="h-4 w-4" />

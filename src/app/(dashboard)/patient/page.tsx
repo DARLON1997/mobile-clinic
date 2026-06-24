@@ -4,12 +4,13 @@ import { prisma }   from "@/lib/prisma"
 import Link         from "next/link"
 import { Heart }    from "lucide-react"
 
-import { NotificationBell }       from "@/components/notifications/NotificationBell"
-import { PromoBanner }            from "@/components/patient/PromoBanner"
-import { ServiceGrid }            from "@/components/patient/ServiceGrid"
-import { NextAppointmentCard }    from "@/components/patient/NextAppointmentCard"
-import { HealthNews }             from "@/components/patient/HealthNews"
-import { BottomNav }              from "@/components/patient/BottomNav"
+import { NotificationBell }         from "@/components/notifications/NotificationBell"
+import { PromoBanner }              from "@/components/patient/PromoBanner"
+import { ServiceGrid }              from "@/components/patient/ServiceGrid"
+import { NextAppointmentCard }      from "@/components/patient/NextAppointmentCard"
+import { HealthNews }               from "@/components/patient/HealthNews"
+import { BottomNav }                from "@/components/patient/BottomNav"
+import { WhatsAppContactButton }    from "@/components/patient/WhatsAppContactButton"
 import type { SerializedAppointment } from "@/components/patient/NextAppointmentCard"
 
 export default async function PatientDashboard() {
@@ -159,6 +160,13 @@ export default async function PatientDashboard() {
           SECTION 6 — Navigation basse fixe (mobile uniquement)
       ───────────────────────────────────────────────────────── */}
       <BottomNav />
+
+      {/* ─────────────────────────────────────────────────────────
+          SECTION 7 — Bouton flottant WhatsApp (patient uniquement)
+          Positionné au-dessus de la BottomNav pour ne pas se
+          superposer. Absent de tous les autres dashboards.
+      ───────────────────────────────────────────────────────── */}
+      <WhatsAppContactButton />
 
       {/* Animation d'apparition */}
       <style>{`

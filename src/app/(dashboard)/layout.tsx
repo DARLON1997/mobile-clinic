@@ -1,9 +1,10 @@
 import type { ReactNode } from "react"
 import { auth }     from "@/auth"
 import { redirect } from "next/navigation"
-import { Sidebar }  from "@/components/shared/Sidebar"
+import { Sidebar }        from "@/components/shared/Sidebar"
+import { InstallBanner }  from "@/components/shared/InstallBanner"
 import { PatientChatWidget } from "@/components/chat/PatientChatWidget"
-import { QueryProvider } from "@/components/providers/QueryProvider"
+import { QueryProvider }  from "@/components/providers/QueryProvider"
 import { InactivityGuard } from "@/components/providers/InactivityGuard"
 import type { UserRole } from "@/types"
 
@@ -52,6 +53,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                 💳 Paiement en ligne bientôt disponible.
               </div>
             )}
+            <InstallBanner />
             <main className="mc-dashboard flex-1 overflow-y-auto p-4 md:p-8">
               {children}
             </main>

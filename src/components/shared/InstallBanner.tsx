@@ -5,7 +5,7 @@ import { X, Download, Share, MoreVertical } from "lucide-react"
 import { useInstallPrompt } from "@/hooks/useInstallPrompt"
 
 export function InstallBanner() {
-  const { platform, canInstall, triggerInstall, dismiss } = useInstallPrompt()
+  const { platform, hasNativePrompt, canInstall, triggerInstall, dismiss } = useInstallPrompt()
   const [installing, setInstalling] = useState(false)
 
   if (!canInstall) return null
@@ -27,7 +27,15 @@ export function InstallBanner() {
       }}
     >
       {platform === "android" ? (
-        <AndroidPrompt onInstall={handleInstall} onDismiss={dismiss} loading={installing} />
+        hasNativePrompt ? (
+          <AndroidNativePrompt
+            onInstall={handleInstall}
+            onDismiss={dismiss}
+            loading={installing}
+          />
+        ) : (
+          <AndroidManualGuide onDismiss={dismiss} />
+        )
       ) : (
         <IOSGuide onDismiss={dismiss} />
       )}
@@ -35,9 +43,9 @@ export function InstallBanner() {
   )
 }
 
-/* ─── Android ──────────────────────────────────────────────── */
+/* ─── Android — prompt natif ────────────────────────────────── */
 
-function AndroidPrompt({
+function AndroidNativePrompt({
   onInstall,
   onDismiss,
   loading,
@@ -48,114 +56,149 @@ function AndroidPrompt({
 }) {
   return (
     <div className="flex items-center gap-3">
-      {/* Icône app */}
-      <div
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-        style={{ background: "rgba(200,144,106,0.15)", border: "1px solid rgba(200,144,106,0.3)" }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/pwa/icon-192x192.png" alt="" className="h-7 w-7 rounded-lg" />
-      </div>
-
-      {/* Texte */}
+      <AppIcon />
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-semibold text-white leading-tight">
-          Installer Mobile Clinic
-        </p>
+        <p className="text-[13px] font-semibold text-white leading-tight">Installer Mobile Clinic</p>
         <p className="text-[11px] leading-tight" style={{ color: "#888" }}>
           Accès rapide depuis votre écran d'accueil
         </p>
       </div>
-
-      {/* Bouton installer */}
       <button
         onClick={onInstall}
         disabled={loading}
         className="flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60"
-        style={{
-          background: "rgba(200,144,106,0.2)",
-          border:     "1px solid rgba(200,144,106,0.5)",
-          color:      "#C8906A",
-        }}
+        style={{ background: "rgba(200,144,106,0.2)", border: "1px solid rgba(200,144,106,0.5)", color: "#C8906A" }}
       >
         <Download className="h-3.5 w-3.5" />
         {loading ? "…" : "Installer"}
       </button>
-
-      {/* Fermer */}
-      <button
-        onClick={onDismiss}
-        aria-label="Fermer"
-        className="shrink-0 rounded-lg p-1.5 transition-colors"
-        style={{ color: "#555" }}
-      >
-        <X className="h-4 w-4" />
-      </button>
+      <DismissButton onDismiss={onDismiss} />
     </div>
   )
 }
 
-/* ─── iOS ───────────────────────────────────────────────────── */
+/* ─── Android — guide manuel (Chrome menu) ──────────────────── */
+
+function AndroidManualGuide({ onDismiss }: { onDismiss: () => void }) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <AppIcon />
+        <button onClick={() => setExpanded(v => !v)} className="flex-1 text-left min-w-0">
+          <p className="text-[13px] font-semibold text-white leading-tight">
+            Installer Mobile Clinic
+          </p>
+          <p className="text-[11px]" style={{ color: "#C8906A" }}>
+            {expanded ? "Masquer ▲" : "Comment faire ▼"}
+          </p>
+        </button>
+        <DismissButton onDismiss={onDismiss} />
+      </div>
+
+      {expanded && (
+        <Steps>
+          <Step n={1} icon={<MoreVertical className="h-4 w-4" />}>
+            Appuie sur les{" "}
+            <span className="font-semibold text-white">3 points ⋮</span>{" "}
+            en haut à droite de Chrome
+          </Step>
+          <Step n={2} icon={<Download className="h-4 w-4" />}>
+            Appuie sur{" "}
+            <span className="font-semibold text-white">
+              « Ajouter à l'écran d'accueil »
+            </span>
+          </Step>
+          <Step n={3} icon={<Download className="h-4 w-4" />}>
+            Appuie sur{" "}
+            <span className="font-semibold text-white">Ajouter</span>{" "}
+            pour confirmer
+          </Step>
+        </Steps>
+      )}
+    </div>
+  )
+}
+
+/* ─── iOS — guide Safari ────────────────────────────────────── */
 
 function IOSGuide({ onDismiss }: { onDismiss: () => void }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
     <div>
-      {/* En-tête cliquable */}
       <div className="flex items-center gap-3">
-        <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-          style={{ background: "rgba(200,144,106,0.15)", border: "1px solid rgba(200,144,106,0.3)" }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/pwa/icon-192x192.png" alt="" className="h-7 w-7 rounded-xl" />
-        </div>
-
-        <button
-          onClick={() => setExpanded(v => !v)}
-          className="flex-1 text-left"
-        >
+        <AppIcon />
+        <button onClick={() => setExpanded(v => !v)} className="flex-1 text-left min-w-0">
           <p className="text-[13px] font-semibold text-white leading-tight">
             Installer Mobile Clinic sur votre iPhone
           </p>
           <p className="text-[11px]" style={{ color: "#C8906A" }}>
-            {expanded ? "Masquer les instructions ▲" : "Voir comment faire ▼"}
+            {expanded ? "Masquer ▲" : "Voir comment faire ▼"}
           </p>
         </button>
-
-        <button
-          onClick={onDismiss}
-          aria-label="Fermer"
-          className="shrink-0 rounded-lg p-1.5"
-          style={{ color: "#555" }}
-        >
-          <X className="h-4 w-4" />
-        </button>
+        <DismissButton onDismiss={onDismiss} />
       </div>
 
-      {/* Étapes (expandable) */}
       {expanded && (
-        <div
-          className="mt-3 flex flex-col gap-2 rounded-xl p-3"
-          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-        >
+        <Steps>
           <Step n={1} icon={<Share className="h-4 w-4" />}>
-            Appuyez sur le bouton <span className="font-semibold text-white">Partager</span>{" "}
+            Appuie sur le bouton{" "}
+            <span className="font-semibold text-white">Partager</span>{" "}
             <span style={{ color: "#C8906A" }}>
-              (le rectangle avec la flèche en bas de Safari)
+              (rectangle avec flèche ↑ en bas de Safari)
             </span>
           </Step>
           <Step n={2} icon={<MoreVertical className="h-4 w-4" />}>
-            Faites défiler vers le bas et appuyez sur{" "}
+            Fais défiler et appuie sur{" "}
             <span className="font-semibold text-white">« Sur l'écran d'accueil »</span>
           </Step>
           <Step n={3} icon={<Download className="h-4 w-4" />}>
-            Appuyez sur <span className="font-semibold text-white">Ajouter</span> — l'app
-            apparaît sur votre écran d'accueil comme une app native
+            Appuie sur{" "}
+            <span className="font-semibold text-white">Ajouter</span>{" "}
+            — l'icône apparaît comme une vraie app
           </Step>
-        </div>
+        </Steps>
       )}
+    </div>
+  )
+}
+
+/* ─── Sous-composants partagés ──────────────────────────────── */
+
+function AppIcon() {
+  return (
+    <div
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+      style={{ background: "rgba(200,144,106,0.15)", border: "1px solid rgba(200,144,106,0.3)" }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/pwa/icon-192x192.png" alt="" className="h-7 w-7 rounded-lg" />
+    </div>
+  )
+}
+
+function DismissButton({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <button
+      onClick={onDismiss}
+      aria-label="Fermer"
+      className="shrink-0 rounded-lg p-1.5"
+      style={{ color: "#555" }}
+    >
+      <X className="h-4 w-4" />
+    </button>
+  )
+}
+
+function Steps({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="mt-3 flex flex-col gap-2 rounded-xl p-3"
+      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+    >
+      {children}
     </div>
   )
 }
@@ -177,7 +220,10 @@ function Step({
       >
         {n}
       </div>
-      <div className="flex items-start gap-1.5 text-[12px] leading-snug" style={{ color: "#aaa" }}>
+      <div
+        className="flex items-start gap-1.5 text-[12px] leading-snug"
+        style={{ color: "#aaa" }}
+      >
         <span className="mt-0.5 shrink-0" style={{ color: "#C8906A" }}>{icon}</span>
         <span>{children}</span>
       </div>

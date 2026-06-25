@@ -45,7 +45,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       lang="fr"
       className={`h-full scroll-smooth ${cormorant.variable} ${dmSans.variable} ${montserrat.variable}`}
     >
-      <body className="min-h-full antialiased">{children}</body>
+      <body className="min-h-full antialiased">
+        {/* Capture beforeinstallprompt avant l'hydratation React — l'événement peut
+            se déclencher pendant le parsing HTML, avant que useEffect soit prêt. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__pwa_dip=null;window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwa_dip=e;});`,
+          }}
+        />
+        {children}
+      </body>
     </html>
   )
 }

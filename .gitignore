@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# PWA — service worker généré au build (reconstruit à chaque déploiement)
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js

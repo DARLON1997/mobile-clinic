@@ -28,9 +28,9 @@ export const metadata: Metadata = {
   title:       "Mobile Clinic — La santé plus proche de vous",
   description: "Plateforme de télémédecine au Congo-Brazzaville. Consultations vidéo, soins à domicile et prélèvements biologiques.",
   keywords:    ["télémédecine", "Congo", "Brazzaville", "médecin en ligne", "consultation vidéo"],
-  manifest:    "/manifest.json",
+  // manifest géré automatiquement par src/app/manifest.ts (App Router)
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Mobile Clinic" },
-  icons: { icon: "/favicon.ico", apple: "/icons/icon-192.png" },
+  icons: { icon: "/favicon.ico", apple: "/pwa/icon-192x192.png" },
 }
 
 export const viewport: Viewport = {

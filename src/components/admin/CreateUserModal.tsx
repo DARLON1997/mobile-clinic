@@ -2,8 +2,14 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useForm, type Resolver } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import type { z } from "zod"
 import { UserPlus, X, Eye, EyeOff } from "lucide-react"
 import { SPECIALITIES } from "@/lib/specialities"
+import { Modal } from "@/components/ui/modal"
+import { Input } from "@/components/ui/input"
+import { BaseUserSchema, DoctorUserSchema } from "@/lib/validation/create-user"
 
 const ROLES = [
   { value: "CALL_CENTER_AGENT", label: "Agent Call Center" },
@@ -12,6 +18,11 @@ const ROLES = [
 ] as const
 
 type Role = typeof ROLES[number]["value"]
+// Superset (DoctorUserSchema étend BaseUserSchema) : un seul type de
+// formulaire, le schéma de validation réel est choisi dynamiquement selon
+// le rôle sélectionné (voir `resolver` ci-dessous) — audit M1, mêmes
+// schémas que l'API (src/lib/validation/create-user.ts), pas de duplication.
+type FormData = z.input<typeof DoctorUserSchema>
 
 export function CreateUserModal() {
   const router = useRouter()
@@ -21,31 +32,45 @@ export function CreateUserModal() {
   const [error,        setError]        = useState<string | null>(null)
   const [success,      setSuccess]      = useState(false)
 
-  const [form, setForm] = useState({
-    email: "", password: "", phone: "", role: "CALL_CENTER_AGENT" as Role,
-    firstName: "", lastName: "", speciality: "GENERALISTE", licenseNumber: "", consultationFee: "",
+  const {
+    register, handleSubmit, watch, setValue, reset: resetForm,
+    formState: { errors },
+  } = useForm<FormData>({
+    // Schéma choisi dynamiquement selon le rôle — TFieldValues (le superset
+    // DoctorUserSchema) rend les deux branches équivalentes à l'exécution ;
+    // le cast règle uniquement la variance de type entre les deux resolvers.
+    resolver: ((values, context, options) =>
+      (values.role === "MEDECIN" ? zodResolver(DoctorUserSchema) : zodResolver(BaseUserSchema))(
+        values, context, options as never
+      )
+    ) as Resolver<FormData>,
+    defaultValues: {
+      email: "", password: "", phone: "", role: "CALL_CENTER_AGENT",
+      firstName: "", lastName: "", speciality: "GENERALISTE", licenseNumber: "", consultationFee: undefined,
+    },
   })
 
+  const role = watch("role")
+
   function reset() {
-    setForm({ email: "", password: "", phone: "", role: "CALL_CENTER_AGENT", firstName: "", lastName: "", speciality: "GENERALISTE", licenseNumber: "", consultationFee: "" })
+    resetForm()
     setError(null)
     setSuccess(false)
   }
 
   function close() { setOpen(false); reset() }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault()
+  async function submit(data: FormData) {
     setError(null)
     setLoading(true)
     try {
-      const payload: Record<string, string> = { email: form.email, password: form.password, phone: form.phone, role: form.role }
-      if (form.role === "MEDECIN") {
-        payload.firstName      = form.firstName
-        payload.lastName       = form.lastName
-        payload.speciality     = form.speciality
-        payload.licenseNumber  = form.licenseNumber
-        payload.consultationFee = form.consultationFee
+      const payload: Record<string, string> = { email: data.email, password: data.password, phone: data.phone, role: data.role }
+      if (data.role === "MEDECIN") {
+        payload.firstName       = data.firstName ?? ""
+        payload.lastName        = data.lastName ?? ""
+        payload.speciality      = data.speciality ?? ""
+        payload.licenseNumber   = data.licenseNumber ?? ""
+        payload.consultationFee = String(data.consultationFee ?? "")
       }
       const res = await fetch("/api/admin/users", {
         method: "POST",
@@ -77,17 +102,21 @@ export function CreateUserModal() {
         Créer un compte
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={close} />
-          <div className="relative z-10 w-full max-w-md rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] p-6 shadow-2xl">
+      <Modal
+        open={open}
+        onClose={close}
+        labelledBy="create-user-modal-title"
+        className="flex items-center justify-center"
+        panelClassName="relative z-10 w-full max-w-md rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] p-6 shadow-2xl"
+      >
+        <>
             {/* En-tête */}
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-lg font-semibold text-white">Créer un compte</h2>
+                <h2 id="create-user-modal-title" className="text-lg font-semibold text-white">Créer un compte</h2>
                 <p className="text-xs text-[#666666] mt-0.5">Ajouter un agent ou un médecin</p>
               </div>
-              <button onClick={close} className="text-[#666666] hover:text-white transition-colors">
+              <button onClick={close} aria-label="Fermer" className="text-[#666666] hover:text-white transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -100,7 +129,7 @@ export function CreateUserModal() {
                 <p className="font-medium text-white">Compte créé avec succès !</p>
               </div>
             ) : (
-              <form onSubmit={submit} className="space-y-4">
+              <form onSubmit={handleSubmit(submit)} className="space-y-4">
                 {/* Rôle */}
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-[#AAAAAA]">Rôle</label>
@@ -109,9 +138,9 @@ export function CreateUserModal() {
                       <button
                         key={r.value}
                         type="button"
-                        onClick={() => setForm(f => ({ ...f, role: r.value }))}
+                        onClick={() => setValue("role", r.value as Role)}
                         className={`rounded-xl border px-3 py-2 text-xs font-medium transition-colors ${
-                          form.role === r.value
+                          role === r.value
                             ? "border-[#C8906A] bg-[rgba(200,144,106,0.12)] text-[#C8906A]"
                             : "border-[#2A2A2A] text-[#666666] hover:border-[#444444] hover:text-[#AAAAAA]"
                         }`}
@@ -122,121 +151,66 @@ export function CreateUserModal() {
                   </div>
                 </div>
 
-                {/* Email */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[#AAAAAA]">Email</label>
-                  <input
-                    type="email"
-                    required
-                    value={form.email}
-                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    className="w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2.5 text-sm text-white placeholder-[#444444] focus:border-[#C8906A] focus:outline-none"
-                    placeholder="exemple@email.com"
-                  />
-                </div>
+                <Input label="Email" type="email" placeholder="exemple@email.com"
+                  error={errors.email?.message}
+                  {...register("email")} />
 
-                {/* Téléphone */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[#AAAAAA]">Téléphone</label>
-                  <input
-                    type="tel"
-                    required
-                    value={form.phone}
-                    onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                    className="w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2.5 text-sm text-white placeholder-[#444444] focus:border-[#C8906A] focus:outline-none"
-                    placeholder="+242060000000"
-                  />
-                </div>
+                <Input label="Téléphone" type="tel" placeholder="+242060000000"
+                  error={errors.phone?.message}
+                  {...register("phone")} />
 
                 {/* Champs spécifiques Médecin */}
-                {form.role === "MEDECIN" && (
+                {role === "MEDECIN" && (
                   <>
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium text-[#AAAAAA]">Prénom</label>
-                        <input
-                          type="text" required
-                          value={form.firstName}
-                          onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))}
-                          className="w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2.5 text-sm text-white placeholder-[#444444] focus:border-[#C8906A] focus:outline-none"
-                          placeholder="Jean"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium text-[#AAAAAA]">Nom</label>
-                        <input
-                          type="text" required
-                          value={form.lastName}
-                          onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}
-                          className="w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2.5 text-sm text-white placeholder-[#444444] focus:border-[#C8906A] focus:outline-none"
-                          placeholder="Dupont"
-                        />
-                      </div>
+                      <Input label="Prénom" placeholder="Jean"
+                        error={errors.firstName?.message}
+                        {...register("firstName")} />
+                      <Input label="Nom" placeholder="Dupont"
+                        error={errors.lastName?.message}
+                        {...register("lastName")} />
                     </div>
                     <div>
                       <label className="mb-1.5 block text-xs font-medium text-[#AAAAAA]">Spécialité</label>
                       <select
-                        required
-                        value={form.speciality}
-                        onChange={e => setForm(f => ({ ...f, speciality: e.target.value }))}
+                        {...register("speciality")}
                         className="w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2.5 text-sm text-white focus:border-[#C8906A] focus:outline-none"
                       >
                         {SPECIALITIES.map(s => (
                           <option key={s.value} value={s.value}>{s.label}</option>
                         ))}
                       </select>
+                      {errors.speciality && <p className="mt-1 text-xs text-[#E85454]">{errors.speciality.message}</p>}
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium text-[#AAAAAA]">N° de licence</label>
-                        <input
-                          type="text" required
-                          value={form.licenseNumber}
-                          onChange={e => setForm(f => ({ ...f, licenseNumber: e.target.value }))}
-                          className="w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2.5 text-sm text-white placeholder-[#444444] focus:border-[#C8906A] focus:outline-none"
-                          placeholder="MED-2024-001"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium text-[#AAAAAA]">Tarif (FCFA)</label>
-                        <input
-                          type="number" required min={0}
-                          value={form.consultationFee}
-                          onChange={e => setForm(f => ({ ...f, consultationFee: e.target.value }))}
-                          className="w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2.5 text-sm text-white placeholder-[#444444] focus:border-[#C8906A] focus:outline-none"
-                          placeholder="15000"
-                        />
-                      </div>
+                      <Input label="N° de licence" placeholder="MED-2024-001"
+                        error={errors.licenseNumber?.message}
+                        {...register("licenseNumber")} />
+                      <Input label="Tarif (FCFA)" type="number" min={0} placeholder="15000"
+                        error={errors.consultationFee?.message}
+                        {...register("consultationFee")} />
                     </div>
                   </>
                 )}
 
                 {/* Mot de passe */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[#AAAAAA]">Mot de passe</label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      required
-                      minLength={8}
-                      value={form.password}
-                      onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                      className="w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2.5 pr-10 text-sm text-white placeholder-[#444444] focus:border-[#C8906A] focus:outline-none"
-                      placeholder="Minimum 8 caractères"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(s => !s)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#666666] hover:text-[#AAAAAA]"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
+                <div className="relative">
+                  <Input label="Mot de passe" type={showPassword ? "text" : "password"} placeholder="Minimum 8 caractères"
+                    error={errors.password?.message}
+                    {...register("password")} />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(s => !s)}
+                    aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                    className="absolute right-3 top-8 text-[#666666] hover:text-[#AAAAAA]"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
 
                 {/* Erreur */}
                 {error && (
-                  <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                  <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
                     {error}
                   </div>
                 )}
@@ -260,9 +234,8 @@ export function CreateUserModal() {
                 </div>
               </form>
             )}
-          </div>
-        </div>
-      )}
+        </>
+      </Modal>
     </>
   )
 }

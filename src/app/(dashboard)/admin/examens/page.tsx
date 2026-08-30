@@ -91,81 +91,141 @@ export default function AdminExamensPage() {
           Aucun examen pour ce filtre.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
-              <tr>
-                <th className="px-4 py-3 text-left">Patient</th>
-                <th className="px-4 py-3 text-left">Médecin</th>
-                <th className="px-4 py-3 text-left">Examen</th>
-                <th className="px-4 py-3 text-left">Date</th>
-                <th className="px-4 py-3 text-left">Statut</th>
-                <th className="px-4 py-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtered.map(e => {
-                const pp = e.patient.patientProfile
-                const dp = e.doctor.doctorProfile
-                return (
-                  <tr key={e.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">
-                      {pp ? `${pp.firstName} ${pp.lastName}` : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {dp ? `Dr ${dp.firstName} ${dp.lastName}` : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900">{e.typeExamen}</p>
-                      {e.instructions && <p className="text-xs text-gray-400">{e.instructions}</p>}
-                    </td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">
-                      {new Date(e.createdAt).toLocaleDateString("fr-FR")}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUT_COLOR[e.statut]}`}>
-                        {STATUT_LABEL[e.statut]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {editId === e.id ? (
-                        <div className="space-y-2 min-w-[200px]">
-                          <div className="relative">
-                            <select value={editStatut} onChange={ev => setEditStatut(ev.target.value)}
-                              className="w-full appearance-none rounded-lg border border-gray-200 px-2 py-1 pr-6 text-xs focus:outline-none focus:ring-2 focus:ring-blue-300">
-                              <option value="EN_ATTENTE">En attente</option>
-                              <option value="EFFECTUE">Effectué</option>
-                              <option value="RESULTATS_RECUS">Résultats reçus</option>
-                            </select>
-                            <ChevronDown className="pointer-events-none absolute right-1.5 top-1.5 h-3 w-3 text-gray-400" />
+        <>
+          {/* Desktop : tableau — inchangé */}
+          <div className="hidden overflow-hidden rounded-xl border border-gray-200 bg-white md:block">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
+                <tr>
+                  <th className="px-4 py-3 text-left">Patient</th>
+                  <th className="px-4 py-3 text-left">Médecin</th>
+                  <th className="px-4 py-3 text-left">Examen</th>
+                  <th className="px-4 py-3 text-left">Date</th>
+                  <th className="px-4 py-3 text-left">Statut</th>
+                  <th className="px-4 py-3 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map(e => {
+                  const pp = e.patient.patientProfile
+                  const dp = e.doctor.doctorProfile
+                  return (
+                    <tr key={e.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">
+                        {pp ? `${pp.firstName} ${pp.lastName}` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {dp ? `Dr ${dp.firstName} ${dp.lastName}` : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-900">{e.typeExamen}</p>
+                        {e.instructions && <p className="text-xs text-gray-400">{e.instructions}</p>}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">
+                        {new Date(e.createdAt).toLocaleDateString("fr-FR")}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUT_COLOR[e.statut]}`}>
+                          {STATUT_LABEL[e.statut]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {editId === e.id ? (
+                          <div className="space-y-2 min-w-[200px]">
+                            <div className="relative">
+                              <select value={editStatut} onChange={ev => setEditStatut(ev.target.value)}
+                                className="w-full appearance-none rounded-lg border border-gray-200 px-2 py-1 pr-6 text-xs focus:outline-none focus:ring-2 focus:ring-blue-300">
+                                <option value="EN_ATTENTE">En attente</option>
+                                <option value="EFFECTUE">Effectué</option>
+                                <option value="RESULTATS_RECUS">Résultats reçus</option>
+                              </select>
+                              <ChevronDown className="pointer-events-none absolute right-1.5 top-1.5 h-3 w-3 text-gray-400" />
+                            </div>
+                            <textarea rows={2} value={editNote} onChange={ev => setEditNote(ev.target.value)}
+                              placeholder="Note de résultat (optionnel)"
+                              className="w-full resize-none rounded-lg border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                            <div className="flex gap-1">
+                              <button onClick={() => saveEdit(e.id)} disabled={saving}
+                                className="flex-1 rounded-lg bg-blue-600 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+                                {saving ? "…" : "Enregistrer"}
+                              </button>
+                              <button onClick={() => setEditId(null)}
+                                className="flex-1 rounded-lg border border-gray-200 py-1 text-xs text-gray-500 hover:bg-gray-50">
+                                Annuler
+                              </button>
+                            </div>
                           </div>
-                          <textarea rows={2} value={editNote} onChange={ev => setEditNote(ev.target.value)}
-                            placeholder="Note de résultat (optionnel)"
-                            className="w-full resize-none rounded-lg border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-300" />
-                          <div className="flex gap-1">
-                            <button onClick={() => saveEdit(e.id)} disabled={saving}
-                              className="flex-1 rounded-lg bg-blue-600 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-                              {saving ? "…" : "Enregistrer"}
-                            </button>
-                            <button onClick={() => setEditId(null)}
-                              className="flex-1 rounded-lg border border-gray-200 py-1 text-xs text-gray-500 hover:bg-gray-50">
-                              Annuler
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button onClick={() => { setEditId(e.id); setEditStatut(e.statut); setEditNote(e.resultatNote ?? "") }}
-                          className="rounded-lg border border-gray-200 px-3 py-1 text-xs text-gray-600 hover:border-blue-300 hover:text-blue-600 transition-colors">
-                          Modifier
+                        ) : (
+                          <button onClick={() => { setEditId(e.id); setEditStatut(e.statut); setEditNote(e.resultatNote ?? "") }}
+                            className="rounded-lg border border-gray-200 px-3 py-1 text-xs text-gray-600 hover:border-blue-300 hover:text-blue-600 transition-colors">
+                            Modifier
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile : liste de cartes empilées (audit C4) */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {filtered.map(e => {
+              const pp = e.patient.patientProfile
+              const dp = e.doctor.doctorProfile
+              return (
+                <div key={e.id} className="rounded-xl border border-gray-200 bg-white p-4">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-gray-900">{pp ? `${pp.firstName} ${pp.lastName}` : "—"}</p>
+                      <p className="text-xs text-gray-500">{dp ? `Dr ${dp.firstName} ${dp.lastName}` : "—"}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUT_COLOR[e.statut]}`}>
+                      {STATUT_LABEL[e.statut]}
+                    </span>
+                  </div>
+                  <div className="mb-3 text-sm text-gray-600">
+                    <p className="font-medium text-gray-900">{e.typeExamen}</p>
+                    {e.instructions && <p className="text-xs text-gray-400">{e.instructions}</p>}
+                    <p className="mt-1 text-xs text-gray-500">{new Date(e.createdAt).toLocaleDateString("fr-FR")}</p>
+                  </div>
+                  {editId === e.id ? (
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <select value={editStatut} onChange={ev => setEditStatut(ev.target.value)}
+                          className="w-full appearance-none rounded-lg border border-gray-200 px-2 py-2 pr-6 text-xs focus:outline-none focus:ring-2 focus:ring-blue-300">
+                          <option value="EN_ATTENTE">En attente</option>
+                          <option value="EFFECTUE">Effectué</option>
+                          <option value="RESULTATS_RECUS">Résultats reçus</option>
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-1.5 top-2.5 h-3 w-3 text-gray-400" />
+                      </div>
+                      <textarea rows={2} value={editNote} onChange={ev => setEditNote(ev.target.value)}
+                        placeholder="Note de résultat (optionnel)"
+                        className="w-full resize-none rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                      <div className="flex gap-1.5">
+                        <button onClick={() => saveEdit(e.id)} disabled={saving}
+                          className="flex-1 rounded-lg bg-blue-600 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+                          {saving ? "…" : "Enregistrer"}
                         </button>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                        <button onClick={() => setEditId(null)}
+                          className="flex-1 rounded-lg border border-gray-200 py-1.5 text-xs text-gray-500 hover:bg-gray-50">
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setEditId(e.id); setEditStatut(e.statut); setEditNote(e.resultatNote ?? "") }}
+                      className="w-full rounded-lg border border-gray-200 py-2 text-xs text-gray-600 hover:border-blue-300 hover:text-blue-600 transition-colors">
+                      Modifier
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </>
       )}
     </div>
   )

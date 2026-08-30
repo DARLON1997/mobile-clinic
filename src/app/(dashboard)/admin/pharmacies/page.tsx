@@ -113,62 +113,109 @@ export default function AdminPharmaciesPage() {
           <p className="text-gray-400">Aucune pharmacie dans cette catégorie.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-              <tr>
-                <th className="px-4 py-3 text-left">Pharmacie</th>
-                <th className="px-4 py-3 text-left hidden sm:table-cell">Quartier</th>
-                <th className="px-4 py-3 text-left hidden md:table-cell">Téléphone</th>
-                <th className="px-4 py-3 text-left">Statut</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {pharmacies.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-gray-900">{p.nomPharmacie}</td>
-                  <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{p.quartier}</td>
-                  <td className="px-4 py-3 text-gray-500 hidden md:table-cell">{p.telephone}</td>
-                  <td className="px-4 py-3">
-                    {!p.isActive ? (
-                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">Suspendue</span>
-                    ) : p.isVerified ? (
-                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Vérifiée</span>
-                    ) : (
-                      <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">En attente</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {!p.isVerified && p.isActive && (
-                        <button onClick={() => verify(p.id)} disabled={acting === p.id}
-                          className="flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50">
-                          {acting === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
-                          Vérifier
-                        </button>
-                      )}
-                      {p.isVerified && p.isActive && (
-                        <button onClick={() => suspend(p.id, p.userId)} disabled={acting === p.id}
-                          className="flex items-center gap-1 rounded-lg bg-orange-500 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-50">
-                          {acting === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <PauseCircle className="h-3.5 w-3.5" />}
-                          Suspendre
-                        </button>
-                      )}
-                      {!p.isActive && (
-                        <button onClick={() => reactivate(p.id, p.userId)} disabled={acting === p.id}
-                          className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-                          {acting === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <PlayCircle className="h-3.5 w-3.5" />}
-                          Réactiver
-                        </button>
-                      )}
-                    </div>
-                  </td>
+        <>
+          {/* Desktop : tableau — inchangé */}
+          <div className="hidden overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm md:block">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                <tr>
+                  <th className="px-4 py-3 text-left">Pharmacie</th>
+                  <th className="px-4 py-3 text-left">Quartier</th>
+                  <th className="px-4 py-3 text-left">Téléphone</th>
+                  <th className="px-4 py-3 text-left">Statut</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {pharmacies.map((p) => (
+                  <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-gray-900">{p.nomPharmacie}</td>
+                    <td className="px-4 py-3 text-gray-500">{p.quartier}</td>
+                    <td className="px-4 py-3 text-gray-500">{p.telephone}</td>
+                    <td className="px-4 py-3">
+                      {!p.isActive ? (
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">Suspendue</span>
+                      ) : p.isVerified ? (
+                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Vérifiée</span>
+                      ) : (
+                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">En attente</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        {!p.isVerified && p.isActive && (
+                          <button onClick={() => verify(p.id)} disabled={acting === p.id}
+                            className="flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50">
+                            {acting === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
+                            Vérifier
+                          </button>
+                        )}
+                        {p.isVerified && p.isActive && (
+                          <button onClick={() => suspend(p.id, p.userId)} disabled={acting === p.id}
+                            className="flex items-center gap-1 rounded-lg bg-orange-500 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-50">
+                            {acting === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <PauseCircle className="h-3.5 w-3.5" />}
+                            Suspendre
+                          </button>
+                        )}
+                        {!p.isActive && (
+                          <button onClick={() => reactivate(p.id, p.userId)} disabled={acting === p.id}
+                            className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+                            {acting === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <PlayCircle className="h-3.5 w-3.5" />}
+                            Réactiver
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile : liste de cartes empilées (audit C4) */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {pharmacies.map((p) => (
+              <div key={p.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-gray-900">{p.nomPharmacie}</p>
+                    <p className="text-xs text-gray-500">{p.quartier} · {p.telephone}</p>
+                  </div>
+                  {!p.isActive ? (
+                    <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">Suspendue</span>
+                  ) : p.isVerified ? (
+                    <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Vérifiée</span>
+                  ) : (
+                    <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">En attente</span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  {!p.isVerified && p.isActive && (
+                    <button onClick={() => verify(p.id)} disabled={acting === p.id}
+                      className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-green-600 px-2.5 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50">
+                      {acting === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
+                      Vérifier
+                    </button>
+                  )}
+                  {p.isVerified && p.isActive && (
+                    <button onClick={() => suspend(p.id, p.userId)} disabled={acting === p.id}
+                      className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-orange-500 px-2.5 py-2 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-50">
+                      {acting === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <PauseCircle className="h-3.5 w-3.5" />}
+                      Suspendre
+                    </button>
+                  )}
+                  {!p.isActive && (
+                    <button onClick={() => reactivate(p.id, p.userId)} disabled={acting === p.id}
+                      className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-blue-600 px-2.5 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+                      {acting === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <PlayCircle className="h-3.5 w-3.5" />}
+                      Réactiver
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Modal Ajouter */}

@@ -3,31 +3,35 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Heart, ArrowLeft, ArrowRight, Check } from "lucide-react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { Heart, ArrowRight, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input }  from "@/components/ui/input"
+import { BackButton } from "@/components/ui/back-button"
 import { cn }     from "@/lib/utils"
+import { registerSchema } from "@/lib/validation/register"
 
-type FormData = {
-  // Étape 1 — Compte
-  email:           string
-  phone:           string
-  password:        string
-  confirmPassword: string
-  // Étape 2 — Informations personnelles
-  firstName:        string
-  lastName:         string
-  dateOfBirth:      string
-  gender:           "M" | "F" | ""
-  address:          string
-  city:             string
-  emergencyContact: string
-  // Étape 3 — Informations médicales
-  bloodType:         string
-  medicalHistory:    string
-  allergies:         string
-  referralCodeInput: string
-}
+// Schéma client = schéma serveur (source unique, audit M1) + confirmation
+// de mot de passe, qui n'existe que côté UI et n'est jamais envoyée à l'API.
+const clientSchema = registerSchema
+  .extend({ confirmPassword: z.string() })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Les mots de passe ne correspondent pas.",
+    path: ["confirmPassword"],
+  })
+
+// z.input (pas z.infer) : le schéma a un .default() sur `city`, ce qui rend
+// le type de sortie différent du type d'entrée — zodResolver attend le type
+// d'entrée pour correspondre à ce que le formulaire manipule réellement.
+type FormData = z.input<typeof clientSchema>
+
+const STEP_FIELDS: (keyof FormData)[][] = [
+  ["email", "phone", "password", "confirmPassword"],
+  ["firstName", "lastName", "dateOfBirth", "gender", "address"],
+  [],
+]
 
 const STEPS = [
   { label: "Compte",         description: "Vos identifiants de connexion" },
@@ -57,50 +61,35 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [done,    setDone]    = useState(false)
 
-  const [form, setForm] = useState<FormData>({
-    email: "", phone: "", password: "", confirmPassword: "",
-    firstName: "", lastName: "", dateOfBirth: "", gender: "",
-    address: "", city: "Brazzaville", emergencyContact: "",
-    bloodType: "", medicalHistory: "", allergies: "", referralCodeInput: "",
+  const {
+    register, handleSubmit, watch, setValue, trigger,
+    formState: { errors },
+  } = useForm<FormData>({
+    resolver: zodResolver(clientSchema),
+    defaultValues: {
+      email: "", phone: "", password: "", confirmPassword: "",
+      firstName: "", lastName: "", dateOfBirth: "", gender: undefined,
+      address: "", city: "Brazzaville", emergencyContact: "",
+      bloodType: "", medicalHistory: "", allergies: "", referralCodeInput: "",
+    },
   })
 
-  function set(field: keyof FormData, value: string) {
-    setForm((f) => ({ ...f, [field]: value }))
-  }
+  const password = watch("password") ?? ""
+  const gender    = watch("gender")
+  const bloodType = watch("bloodType")
 
-  const pwdLong  = form.password.length >= 8
-  const pwdUpper = /[A-Z]/.test(form.password)
-  const pwdDigit = /\d/.test(form.password)
+  const pwdLong  = password.length >= 8
+  const pwdUpper = /[A-Z]/.test(password)
+  const pwdDigit = /\d/.test(password)
 
-  function validateStep(): string | null {
-    if (step === 0) {
-      if (!form.email.includes("@"))   return "Email invalide."
-      if (!/^\+242\d{9}$/.test(form.phone))
-        return "Téléphone invalide (format : +242XXXXXXXXX)."
-      if (!pwdLong || !pwdUpper || !pwdDigit)
-        return "Le mot de passe ne respecte pas les règles de sécurité."
-      if (form.password !== form.confirmPassword)
-        return "Les mots de passe ne correspondent pas."
-    }
-    if (step === 1) {
-      if (!form.firstName.trim()) return "Prénom requis."
-      if (!form.lastName.trim())  return "Nom requis."
-      if (!form.dateOfBirth)      return "Date de naissance requise."
-      if (!form.gender)           return "Genre requis."
-      if (!form.address.trim())   return "Adresse requise."
-    }
-    return null
-  }
-
-  function handleNext() {
-    const err = validateStep()
-    if (err) { setError(err); return }
+  async function handleNext() {
+    const valid = await trigger(STEP_FIELDS[step])
+    if (!valid) return
     setError("")
     setStep((s) => s + 1)
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function onSubmit(data: FormData) {
     setLoading(true)
     setError("")
 
@@ -109,24 +98,24 @@ export default function RegisterPage() {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email:             form.email,
-          phone:             form.phone,
-          password:          form.password,
-          firstName:         form.firstName,
-          lastName:          form.lastName,
-          dateOfBirth:       form.dateOfBirth,
-          gender:            form.gender,
-          address:           form.address,
-          city:              form.city,
-          emergencyContact:  form.emergencyContact    || undefined,
-          bloodType:         form.bloodType           || undefined,
-          medicalHistory:    form.medicalHistory      || undefined,
-          allergies:         form.allergies           || undefined,
-          referralCodeInput: form.referralCodeInput   || undefined,
+          email:             data.email,
+          phone:             data.phone,
+          password:          data.password,
+          firstName:         data.firstName,
+          lastName:          data.lastName,
+          dateOfBirth:       data.dateOfBirth,
+          gender:            data.gender,
+          address:           data.address,
+          city:              data.city,
+          emergencyContact:  data.emergencyContact    || undefined,
+          bloodType:         data.bloodType           || undefined,
+          medicalHistory:    data.medicalHistory      || undefined,
+          allergies:         data.allergies           || undefined,
+          referralCodeInput: data.referralCodeInput   || undefined,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? "Erreur lors de l'inscription.")
+      const resData = await res.json()
+      if (!res.ok) throw new Error(resData.error ?? "Erreur lors de l'inscription.")
       setDone(true)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue.")
@@ -200,7 +189,7 @@ export default function RegisterPage() {
           </div>
 
           {error && (
-            <div className="mb-4 rounded-lg border border-[rgba(232,84,84,0.2)] bg-[rgba(232,84,84,0.08)] px-4 py-3 text-sm text-[#E85454]">
+            <div role="alert" className="mb-4 rounded-lg border border-[rgba(232,84,84,0.2)] bg-[rgba(232,84,84,0.08)] px-4 py-3 text-sm text-[#E85454]">
               {error}
             </div>
           )}
@@ -208,19 +197,22 @@ export default function RegisterPage() {
           <form
             onSubmit={step < 2
               ? (e) => { e.preventDefault(); handleNext() }
-              : handleSubmit}
+              : handleSubmit(onSubmit)}
           >
 
             {/* ── ÉTAPE 1 — Compte ── */}
             {step === 0 && (
               <div className="flex flex-col gap-4">
                 <Input label="Adresse email *" type="email" placeholder="vous@exemple.com"
-                  value={form.email} onChange={(e) => set("email", e.target.value)} />
+                  error={errors.email?.message}
+                  {...register("email")} />
                 <Input label="Téléphone *" type="tel" placeholder="+242XXXXXXXXX"
-                  value={form.phone} onChange={(e) => set("phone", e.target.value)} />
+                  error={errors.phone?.message}
+                  {...register("phone")} />
                 <Input label="Mot de passe *" type="password" placeholder="Minimum 8 caractères"
-                  value={form.password} onChange={(e) => set("password", e.target.value)} />
-                {form.password && (
+                  error={errors.password?.message}
+                  {...register("password")} />
+                {password && (
                   <div className="flex flex-col gap-1">
                     <PasswordRule ok={pwdLong}  label="8 caractères minimum" />
                     <PasswordRule ok={pwdUpper} label="1 lettre majuscule" />
@@ -228,7 +220,8 @@ export default function RegisterPage() {
                   </div>
                 )}
                 <Input label="Confirmer le mot de passe *" type="password" placeholder="Répétez votre mot de passe"
-                  value={form.confirmPassword} onChange={(e) => set("confirmPassword", e.target.value)} />
+                  error={errors.confirmPassword?.message}
+                  {...register("confirmPassword")} />
               </div>
             )}
 
@@ -236,20 +229,23 @@ export default function RegisterPage() {
             {step === 1 && (
               <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <Input label="Prénom *" placeholder="Jean" value={form.firstName}
-                    onChange={(e) => set("firstName", e.target.value)} />
-                  <Input label="Nom *" placeholder="Mbemba" value={form.lastName}
-                    onChange={(e) => set("lastName", e.target.value)} />
+                  <Input label="Prénom *" placeholder="Jean"
+                    error={errors.firstName?.message}
+                    {...register("firstName")} />
+                  <Input label="Nom *" placeholder="Mbemba"
+                    error={errors.lastName?.message}
+                    {...register("lastName")} />
                 </div>
-                <Input label="Date de naissance *" type="date" value={form.dateOfBirth}
-                  onChange={(e) => set("dateOfBirth", e.target.value)} />
+                <Input label="Date de naissance *" type="date"
+                  error={errors.dateOfBirth?.message}
+                  {...register("dateOfBirth")} />
                 <div className="flex flex-col gap-1.5">
                   <span className="font-montserrat text-xs font-medium uppercase tracking-[0.06em] text-[#AAAAAA]">Genre *</span>
                   <div className="flex gap-3">
                     {[{ value: "M", label: "Homme" }, { value: "F", label: "Femme" }].map(({ value, label }) => (
-                      <button type="button" key={value} onClick={() => set("gender", value)}
+                      <button type="button" key={value} onClick={() => setValue("gender", value as "M" | "F", { shouldValidate: true })}
                         className={cn("flex-1 rounded-lg border py-2.5 text-sm font-medium transition-all",
-                          form.gender === value
+                          gender === value
                             ? "border-[#C8906A] bg-[rgba(200,144,106,0.1)] text-[#C8906A]"
                             : "border-[#2A2A2A] bg-[#1A1A1A] text-[#666666] hover:border-[rgba(200,144,106,0.4)]"
                         )}>
@@ -257,13 +253,15 @@ export default function RegisterPage() {
                       </button>
                     ))}
                   </div>
+                  {errors.gender && <p className="text-xs text-[#E85454]">{errors.gender.message}</p>}
                 </div>
-                <Input label="Adresse complète *" placeholder="Rue, quartier" value={form.address}
-                  onChange={(e) => set("address", e.target.value)} />
-                <Input label="Ville" placeholder="Brazzaville" value={form.city}
-                  onChange={(e) => set("city", e.target.value)} />
+                <Input label="Adresse complète *" placeholder="Rue, quartier"
+                  error={errors.address?.message}
+                  {...register("address")} />
+                <Input label="Ville" placeholder="Brazzaville"
+                  {...register("city")} />
                 <Input label="Contact d'urgence (nom + téléphone)" placeholder="Maman — +242 06 XXX XX XX"
-                  value={form.emergencyContact} onChange={(e) => set("emergencyContact", e.target.value)} />
+                  {...register("emergencyContact")} />
               </div>
             )}
 
@@ -274,9 +272,9 @@ export default function RegisterPage() {
                   <span className="font-montserrat text-xs font-medium uppercase tracking-[0.06em] text-[#AAAAAA]">Groupe sanguin</span>
                   <div className="flex flex-wrap gap-2">
                     {BLOOD_TYPES.map((bt) => (
-                      <button type="button" key={bt} onClick={() => set("bloodType", bt)}
+                      <button type="button" key={bt} onClick={() => setValue("bloodType", bt)}
                         className={cn("rounded-lg border px-3 py-1.5 text-sm font-medium transition-all",
-                          form.bloodType === bt
+                          bloodType === bt
                             ? "border-[#C8906A] bg-[rgba(200,144,106,0.1)] text-[#C8906A]"
                             : "border-[#2A2A2A] bg-[#1A1A1A] text-[#666666] hover:border-[rgba(200,144,106,0.4)]"
                         )}>
@@ -290,20 +288,21 @@ export default function RegisterPage() {
                   <textarea rows={3}
                     className="w-full rounded-lg border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2 text-sm text-white placeholder:text-[#444444] focus:border-[rgba(200,144,106,0.5)] focus:outline-none focus:ring-2 focus:ring-[rgba(200,144,106,0.25)]"
                     placeholder="Ex : Diabète, hypertension..."
-                    value={form.medicalHistory} onChange={(e) => set("medicalHistory", e.target.value)} />
+                    {...register("medicalHistory")} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="font-montserrat text-xs font-medium uppercase tracking-[0.06em] text-[#AAAAAA]">Allergies connues</label>
                   <textarea rows={3}
                     className="w-full rounded-lg border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2 text-sm text-white placeholder:text-[#444444] focus:border-[rgba(200,144,106,0.5)] focus:outline-none focus:ring-2 focus:ring-[rgba(200,144,106,0.25)]"
                     placeholder="Ex : Pénicilline, arachides..."
-                    value={form.allergies} onChange={(e) => set("allergies", e.target.value)} />
+                    {...register("allergies")} />
                 </div>
                 <Input
                   label="Code de parrainage (facultatif)"
                   placeholder="Ex : MC-AB3XY2"
-                  value={form.referralCodeInput}
-                  onChange={(e) => set("referralCodeInput", e.target.value.toUpperCase())}
+                  {...register("referralCodeInput", {
+                    onChange: (e) => setValue("referralCodeInput", e.target.value.toUpperCase()),
+                  })}
                 />
               </div>
             )}
@@ -311,11 +310,7 @@ export default function RegisterPage() {
             {/* Navigation */}
             <div className="mt-6 flex items-center justify-between gap-3">
               {step > 0 ? (
-                <Button type="button" variant="ghost"
-                  onClick={() => { setStep((s) => s - 1); setError("") }}>
-                  <ArrowLeft className="h-4 w-4" />
-                  Retour
-                </Button>
+                <BackButton variant="button" onClick={() => { setStep((s) => s - 1); setError("") }} />
               ) : (
                 <Link href="/login" className="text-sm text-[#444444] transition-colors hover:text-[#AAAAAA]">
                   Déjà inscrit ? Se connecter

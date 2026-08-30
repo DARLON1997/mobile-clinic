@@ -75,54 +75,92 @@ export default async function DoctorAppointmentsPage({ searchParams }: SearchPar
           Aucun rendez-vous pour ce filtre.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-gray-50 text-xs font-semibold uppercase text-gray-500">
-                <th className="px-4 py-3 text-left">Date</th>
-                <th className="px-4 py-3 text-left">Patient</th>
-                <th className="px-4 py-3 text-left">Motif</th>
-                <th className="px-4 py-3 text-left">Statut</th>
-                <th className="px-4 py-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {appointments.map((appt) => {
-                const patientName = appt.patient.patientProfile
-                  ? `${appt.patient.patientProfile.firstName} ${appt.patient.patientProfile.lastName}`
-                  : appt.patient.email
-                return (
-                  <tr key={appt.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-gray-600">
-                      {formatDateFR(appt.scheduledAt)}
-                    </td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{patientName}</td>
-                    <td className="px-4 py-3 text-gray-600 max-w-[180px] truncate">{appt.reason}</td>
-                    <td className="px-4 py-3">
-                      <AppointmentStatusBadge status={appt.status} />
-                    </td>
-                    <td className="px-4 py-3">
-                      {(appt.status === "CONFIRMED" || appt.status === "IN_PROGRESS") && (
-                        <Link href={`/doctor/consultation/${appt.id}`}>
-                          <Button size="sm" className="h-7 px-2 text-xs">
-                            <Video className="h-3 w-3" /> Rejoindre
-                          </Button>
-                        </Link>
-                      )}
-                      {appt.status === "COMPLETED" && appt.consultation?.prescriptionUrl && (
-                        <a href={appt.consultation.prescriptionUrl} target="_blank" rel="noreferrer">
-                          <Button size="sm" variant="outline" className="h-7 px-2 text-xs">
-                            <FileText className="h-3 w-3" /> Ordonnance
-                          </Button>
-                        </a>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* Desktop : tableau — inchangé */}
+          <div className="hidden overflow-x-auto rounded-xl border border-gray-200 bg-white md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50 text-xs font-semibold uppercase text-gray-500">
+                  <th className="px-4 py-3 text-left">Date</th>
+                  <th className="px-4 py-3 text-left">Patient</th>
+                  <th className="px-4 py-3 text-left">Motif</th>
+                  <th className="px-4 py-3 text-left">Statut</th>
+                  <th className="px-4 py-3 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {appointments.map((appt) => {
+                  const patientName = appt.patient.patientProfile
+                    ? `${appt.patient.patientProfile.firstName} ${appt.patient.patientProfile.lastName}`
+                    : appt.patient.email
+                  return (
+                    <tr key={appt.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-600">
+                        {formatDateFR(appt.scheduledAt)}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{patientName}</td>
+                      <td className="px-4 py-3 text-gray-600 max-w-[180px] truncate">{appt.reason}</td>
+                      <td className="px-4 py-3">
+                        <AppointmentStatusBadge status={appt.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        {(appt.status === "CONFIRMED" || appt.status === "IN_PROGRESS") && (
+                          <Link href={`/doctor/consultation/${appt.id}`}>
+                            <Button size="sm" className="h-7 px-2 text-xs">
+                              <Video className="h-3 w-3" /> Rejoindre
+                            </Button>
+                          </Link>
+                        )}
+                        {appt.status === "COMPLETED" && appt.consultation?.prescriptionUrl && (
+                          <a href={appt.consultation.prescriptionUrl} target="_blank" rel="noreferrer">
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs">
+                              <FileText className="h-3 w-3" /> Ordonnance
+                            </Button>
+                          </a>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile : liste de cartes empilées (audit C4) */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {appointments.map((appt) => {
+              const patientName = appt.patient.patientProfile
+                ? `${appt.patient.patientProfile.firstName} ${appt.patient.patientProfile.lastName}`
+                : appt.patient.email
+              return (
+                <div key={appt.id} className="rounded-xl border border-gray-200 bg-white p-4">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-gray-900">{patientName}</p>
+                      <p className="text-xs text-gray-500">{formatDateFR(appt.scheduledAt)}</p>
+                    </div>
+                    <AppointmentStatusBadge status={appt.status} />
+                  </div>
+                  <p className="mb-3 truncate text-sm text-gray-600">{appt.reason}</p>
+                  {(appt.status === "CONFIRMED" || appt.status === "IN_PROGRESS") && (
+                    <Link href={`/doctor/consultation/${appt.id}`} className="block">
+                      <Button size="sm" className="h-8 w-full text-xs">
+                        <Video className="h-3 w-3" /> Rejoindre
+                      </Button>
+                    </Link>
+                  )}
+                  {appt.status === "COMPLETED" && appt.consultation?.prescriptionUrl && (
+                    <a href={appt.consultation.prescriptionUrl} target="_blank" rel="noreferrer" className="block">
+                      <Button size="sm" variant="outline" className="h-8 w-full text-xs">
+                        <FileText className="h-3 w-3" /> Ordonnance
+                      </Button>
+                    </a>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </>
       )}
     </div>
   )

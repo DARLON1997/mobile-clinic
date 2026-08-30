@@ -77,51 +77,85 @@ export default async function FinancesPage() {
       </div>
 
       {/* Tableau des paiements */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-gray-50 text-xs font-semibold uppercase text-gray-500">
-              <th className="px-4 py-3 text-left">Date</th>
-              <th className="px-4 py-3 text-left">Patient</th>
-              <th className="px-4 py-3 text-left">Médecin</th>
-              <th className="px-4 py-3 text-left">Montant</th>
-              <th className="px-4 py-3 text-left">Méthode</th>
-              <th className="px-4 py-3 text-left">Statut</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {payments.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
-                  Aucun paiement enregistré.
-                </td>
-              </tr>
-            ) : payments.map((p) => {
+      {payments.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white px-4 py-8 text-center text-gray-400">
+          Aucun paiement enregistré.
+        </div>
+      ) : (
+        <>
+          {/* Desktop : tableau — inchangé */}
+          <div className="hidden overflow-x-auto rounded-xl border border-gray-200 bg-white md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50 text-xs font-semibold uppercase text-gray-500">
+                  <th className="px-4 py-3 text-left">Date</th>
+                  <th className="px-4 py-3 text-left">Patient</th>
+                  <th className="px-4 py-3 text-left">Médecin</th>
+                  <th className="px-4 py-3 text-left">Montant</th>
+                  <th className="px-4 py-3 text-left">Méthode</th>
+                  <th className="px-4 py-3 text-left">Statut</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {payments.map((p) => {
+                  const patientName = p.user.patientProfile
+                    ? `${p.user.patientProfile.firstName} ${p.user.patientProfile.lastName}`
+                    : p.user.email
+                  const dp = p.appointment?.doctor?.doctorProfile
+                  const doctorName = dp ? `Dr ${dp.firstName} ${dp.lastName}` : "—"
+                  return (
+                    <tr key={p.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-500">{formatDate(p.createdAt)}</td>
+                      <td className="px-4 py-3 text-gray-700">{patientName}</td>
+                      <td className="px-4 py-3 text-gray-600">{doctorName}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{formatXAF(p.amount)}</td>
+                      <td className="px-4 py-3 text-gray-500">
+                        {p.method === "MTN_MONEY"   && "MTN Mobile Money"}
+                        {p.method === "AIRTEL_MONEY" && "Airtel Money"}
+                        {p.method === "CARD"         && "Carte bancaire"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <PaymentStatusBadge status={p.status} />
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile : liste de cartes empilées (audit C4) */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {payments.map((p) => {
               const patientName = p.user.patientProfile
                 ? `${p.user.patientProfile.firstName} ${p.user.patientProfile.lastName}`
                 : p.user.email
               const dp = p.appointment?.doctor?.doctorProfile
               const doctorName = dp ? `Dr ${dp.firstName} ${dp.lastName}` : "—"
               return (
-                <tr key={p.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 whitespace-nowrap text-gray-500">{formatDate(p.createdAt)}</td>
-                  <td className="px-4 py-3 text-gray-700">{patientName}</td>
-                  <td className="px-4 py-3 text-gray-600">{doctorName}</td>
-                  <td className="px-4 py-3 font-medium text-gray-900">{formatXAF(p.amount)}</td>
-                  <td className="px-4 py-3 text-gray-500">
-                    {p.method === "MTN_MONEY"   && "MTN Mobile Money"}
-                    {p.method === "AIRTEL_MONEY" && "Airtel Money"}
-                    {p.method === "CARD"         && "Carte bancaire"}
-                  </td>
-                  <td className="px-4 py-3">
+                <div key={p.id} className="rounded-xl border border-gray-200 bg-white p-4">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-gray-700">{patientName}</p>
+                      <p className="text-xs text-gray-500">{doctorName}</p>
+                    </div>
                     <PaymentStatusBadge status={p.status} />
-                  </td>
-                </tr>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-gray-900">{formatXAF(p.amount)}</span>
+                    <span className="text-xs text-gray-500">
+                      {p.method === "MTN_MONEY"   && "MTN Mobile Money"}
+                      {p.method === "AIRTEL_MONEY" && "Airtel Money"}
+                      {p.method === "CARD"         && "Carte bancaire"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-400">{formatDate(p.createdAt)}</p>
+                </div>
               )
             })}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

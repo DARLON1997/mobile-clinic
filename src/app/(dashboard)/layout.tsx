@@ -3,6 +3,7 @@ import { auth }     from "@/auth"
 import { redirect } from "next/navigation"
 import { Sidebar }        from "@/components/shared/Sidebar"
 import { InstallBanner }  from "@/components/shared/InstallBanner"
+import { PushOptInBanner } from "@/components/shared/PushOptInBanner"
 import { PatientChatWidget } from "@/components/chat/PatientChatWidget"
 import { QueryProvider }  from "@/components/providers/QueryProvider"
 import { InactivityGuard } from "@/components/providers/InactivityGuard"
@@ -54,7 +55,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               </div>
             )}
             <InstallBanner />
-            <main className="mc-dashboard flex-1 overflow-y-auto p-4 md:p-8">
+            <PushOptInBanner />
+            {/* pb mobile réservé à MobileTabBar (C2) + zone de sécurité basse (C1) ;
+                inchangé à partir de md: (pas de barre d'onglets sur desktop) */}
+            <main className="mc-dashboard flex-1 overflow-y-auto p-4 max-md:pb-[calc(4rem+env(safe-area-inset-bottom))] md:p-8">
               {children}
             </main>
             {role === "PATIENT" && <PatientChatWidget userId={session.user.id} />}

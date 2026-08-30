@@ -46,3 +46,42 @@ const serwist = new Serwist({
 })
 
 serwist.addEventListeners()
+
+// ─── Notifications push (audit H3) ──────────────────────────────────────────
+// Complète les événements install/activate/fetch de Serwist ci-dessus —
+// n'interfère pas avec le cache : ces événements ne touchent jamais le réseau.
+
+type PushPayload = { title: string; body: string; url: string }
+
+self.addEventListener("push", (event: PushEvent) => {
+  if (!event.data) return
+  let payload: PushPayload
+  try {
+    payload = event.data.json()
+  } catch {
+    return
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: "/pwa/icon-192x192.png",
+      badge: "/pwa/icon-192x192.png",
+      data: { url: payload.url },
+    })
+  )
+})
+
+self.addEventListener("notificationclick", (event: NotificationEvent) => {
+  event.notification.close()
+  const url = (event.notification.data as { url?: string } | undefined)?.url ?? "/"
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(url) && "focus" in client) return client.focus()
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url)
+    })
+  )
+})

@@ -62,45 +62,69 @@ export default async function AuditPage({ searchParams }: SearchParams) {
         </button>
       </form>
 
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-gray-50 text-xs font-semibold uppercase text-gray-500">
-              <th className="px-4 py-3 text-left">Date / Heure</th>
-              <th className="px-4 py-3 text-left">Utilisateur</th>
-              <th className="px-4 py-3 text-left">Rôle</th>
-              <th className="px-4 py-3 text-left">Action</th>
-              <th className="px-4 py-3 text-left">Ressource ciblée</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {logs.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
-                  Aucune entrée pour ces filtres.
-                </td>
-              </tr>
-            ) : logs.map((log) => (
-              <tr key={log.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                  {formatDate(log.createdAt)}
-                </td>
-                <td className="px-4 py-3 text-gray-700">{log.user.email}</td>
-                <td className="px-4 py-3 text-xs text-gray-500">{log.user.role}</td>
-                <td className="px-4 py-3">
+      {logs.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white px-4 py-8 text-center text-gray-400">
+          Aucune entrée pour ces filtres.
+        </div>
+      ) : (
+        <>
+          {/* Desktop : tableau — inchangé */}
+          <div className="hidden overflow-x-auto rounded-xl border border-gray-200 bg-white md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50 text-xs font-semibold uppercase text-gray-500">
+                  <th className="px-4 py-3 text-left">Date / Heure</th>
+                  <th className="px-4 py-3 text-left">Utilisateur</th>
+                  <th className="px-4 py-3 text-left">Rôle</th>
+                  <th className="px-4 py-3 text-left">Action</th>
+                  <th className="px-4 py-3 text-left">Ressource ciblée</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {logs.map((log) => (
+                  <tr key={log.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                      {formatDate(log.createdAt)}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">{log.user.email}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{log.user.role}</td>
+                    <td className="px-4 py-3">
+                      <span className="rounded bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-700">
+                        {log.action}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      {log.targetType && <span className="font-medium">{log.targetType}</span>}
+                      {log.targetId   && <span className="ml-1 font-mono opacity-60">#{log.targetId.slice(0, 8)}</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile : liste de cartes empilées (audit C4) */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {logs.map((log) => (
+              <div key={log.id} className="rounded-xl border border-gray-200 bg-white p-4">
+                <div className="mb-1.5 flex items-start justify-between gap-2">
                   <span className="rounded bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-700">
                     {log.action}
                   </span>
-                </td>
-                <td className="px-4 py-3 text-xs text-gray-500">
-                  {log.targetType && <span className="font-medium">{log.targetType}</span>}
-                  {log.targetId   && <span className="ml-1 font-mono opacity-60">#{log.targetId.slice(0, 8)}</span>}
-                </td>
-              </tr>
+                  <span className="shrink-0 text-xs text-gray-500 whitespace-nowrap">{formatDate(log.createdAt)}</span>
+                </div>
+                <p className="text-sm text-gray-700">{log.user.email} <span className="text-xs text-gray-500">({log.user.role})</span></p>
+                {(log.targetType || log.targetId) && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {log.targetType && <span className="font-medium">{log.targetType}</span>}
+                    {log.targetId   && <span className="ml-1 font-mono opacity-60">#{log.targetId.slice(0, 8)}</span>}
+                  </p>
+                )}
+              </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (

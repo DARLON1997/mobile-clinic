@@ -22,7 +22,7 @@ export interface InstallPromptState {
   canInstall:      boolean
   isInstalled:     boolean
   isDismissed:     boolean
-  triggerInstall:  () => Promise<void>
+  triggerInstall:  () => Promise<"accepted" | "dismissed" | null>
   dismiss:         () => void
 }
 
@@ -92,11 +92,12 @@ export function useInstallPrompt(): InstallPromptState {
   }, [])
 
   const triggerInstall = async () => {
-    if (!deferredPrompt) return
+    if (!deferredPrompt) return null
     await deferredPrompt.prompt()
     const { outcome } = await deferredPrompt.userChoice
     if (outcome === "accepted") setIsInstalled(true)
     setDeferredPrompt(null)
+    return outcome
   }
 
   const dismiss = () => {

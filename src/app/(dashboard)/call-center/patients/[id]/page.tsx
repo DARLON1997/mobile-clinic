@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { ArrowLeft, Loader2, Monitor, Smartphone, Tablet, Phone, Gift, Users } from "lucide-react"
+import { Loader2, Monitor, Smartphone, Tablet, Phone, Gift, Users } from "lucide-react"
+import { BackButton } from "@/components/ui/back-button"
 import { STATUS_LABEL, STATUS_COLOR, computeActivityStatus } from "@/lib/patient-activity-status"
 import type { PatientActivityStatus } from "@/lib/patient-activity-status"
 
@@ -23,16 +24,15 @@ type CCReferralRow = {
 }
 
 function DeviceIcon({ device }: { device: string }) {
-  if (device === "Mobile")   return <Smartphone size={14} className="text-[#C8906A]" />
+  if (device === "Mobile")   return <Smartphone size={14} className="text-blue-600" />
   if (device === "Tablette") return <Tablet     size={14} className="text-blue-400" />
-  return <Monitor size={14} className="text-[#888]" />
+  return <Monitor size={14} className="text-gray-400" />
 }
 
 type TabKey = "identite" | "journal" | "parrainage"
 
 export default function CallCenterPatientDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const router  = useRouter()
   const [tab,   setTab] = useState<TabKey>("identite")
 
   const { data, isLoading } = useQuery<{ patient: Patient; connexions: Connexion[] }>({
@@ -54,12 +54,12 @@ export default function CallCenterPatientDetailPage() {
 
   if (isLoading) return (
     <div className="flex justify-center py-20">
-      <Loader2 className="h-6 w-6 animate-spin text-[#C8906A]" />
+      <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
     </div>
   )
 
   const { patient, connexions } = data ?? {}
-  if (!patient) return <div className="py-16 text-center text-[#666]">Patient introuvable.</div>
+  if (!patient) return <div className="py-16 text-center text-gray-400">Patient introuvable.</div>
 
   const status = computeActivityStatus(
     patient.lastConnectionAt ? new Date(patient.lastConnectionAt) : null
@@ -74,18 +74,15 @@ export default function CallCenterPatientDetailPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <button onClick={() => router.back()}
-        className="flex items-center gap-1.5 text-sm text-[#666] hover:text-white transition-colors">
-        <ArrowLeft size={16} /> Retour
-      </button>
+      <BackButton />
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#1E1E1E] text-lg font-bold text-[#C8906A] ring-2 ring-[rgba(200,144,106,0.3)]">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-lg font-bold text-blue-600 ring-2 ring-blue-100">
             {patient.patientProfile?.firstName?.[0] ?? "?"}{patient.patientProfile?.lastName?.[0] ?? ""}
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">
+            <h1 className="text-xl font-bold text-gray-900">
               {patient.patientProfile?.firstName} {patient.patientProfile?.lastName}
             </h1>
             <span
@@ -98,21 +95,21 @@ export default function CallCenterPatientDetailPage() {
         </div>
         <a
           href={`tel:${patient.phone}`}
-          className="flex items-center gap-2 rounded-xl border border-[#C8906A] px-4 py-2 text-sm font-medium text-[#C8906A] hover:bg-[rgba(200,144,106,0.1)] transition-colors"
+          className="flex items-center gap-2 rounded-xl border border-blue-600 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors"
         >
           <Phone size={16} /> Appeler
         </a>
       </div>
 
-      <div className="flex gap-1 border-b border-[#2A2A2A] overflow-x-auto">
+      <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
         {TABS.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setTab(key)}
             className="whitespace-nowrap px-4 py-2.5 text-sm font-medium transition-colors"
             style={{
-              color:        tab === key ? "#C8906A" : "#666",
-              borderBottom: tab === key ? "2px solid #C8906A" : "2px solid transparent",
+              color:        tab === key ? "#2563eb" : "#6b7280",
+              borderBottom: tab === key ? "2px solid #2563eb" : "2px solid transparent",
               marginBottom: -1,
             }}
           >
@@ -131,26 +128,26 @@ export default function CallCenterPatientDetailPage() {
             { label: "Dernière connexion",value: patient.lastConnectionAt ? new Date(patient.lastConnectionAt).toLocaleString("fr-FR") : "Jamais" },
             { label: "Total connexions",  value: String(patient.totalConnections) },
           ].map(({ label, value }) => (
-            <div key={label} className="rounded-xl border border-[#2A2A2A] bg-[#141414] p-4">
-              <p className="text-[11px] text-[#666]">{label}</p>
-              <p className="mt-0.5 font-medium text-white">{value}</p>
+            <div key={label} className="rounded-xl border border-gray-200 bg-white p-4">
+              <p className="text-[11px] text-gray-400">{label}</p>
+              <p className="mt-0.5 font-medium text-gray-900">{value}</p>
             </div>
           ))}
         </div>
       )}
 
       {tab === "journal" && (
-        <div className="rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] overflow-hidden">
+        <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
           {!connexions?.length ? (
-            <p className="py-12 text-center text-sm text-[#666]">Aucune connexion enregistrée.</p>
+            <p className="py-12 text-center text-sm text-gray-400">Aucune connexion enregistrée.</p>
           ) : (
-            <div className="max-h-[60vh] overflow-y-auto divide-y divide-[#1A1A1A]">
+            <div className="max-h-[60vh] overflow-y-auto divide-y divide-gray-100">
               {connexions.map((c) => (
                 <div key={c.id} className="flex items-center gap-4 px-5 py-3.5">
                   <DeviceIcon device={c.device} />
                   <div className="flex-1">
-                    <p className="text-sm text-white">{new Date(c.connectedAt).toLocaleString("fr-FR")}</p>
-                    <p className="text-[11px] text-[#555]">{c.device} — {c.ipAddress ?? "IP inconnue"}</p>
+                    <p className="text-sm text-gray-900">{new Date(c.connectedAt).toLocaleString("fr-FR")}</p>
+                    <p className="text-[11px] text-gray-400">{c.device} — {c.ipAddress ?? "IP inconnue"}</p>
                   </div>
                 </div>
               ))}
@@ -163,31 +160,31 @@ export default function CallCenterPatientDetailPage() {
         <div className="space-y-4">
           {refLoading ? (
             <div className="flex justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-[#C8906A]" />
+              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
             </div>
           ) : (
             <>
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-[rgba(200,144,106,0.3)] bg-[rgba(200,144,106,0.05)] p-5">
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-5">
                   <div className="flex items-center gap-2 mb-2">
-                    <Gift className="h-4 w-4 text-[#C8906A]" />
-                    <p className="text-[11px] text-[#C8906A]/70">Points de parrainage</p>
+                    <Gift className="h-4 w-4 text-blue-600" />
+                    <p className="text-[11px] text-blue-600/70">Points de parrainage</p>
                   </div>
-                  <p className="text-3xl font-bold text-[#C8906A]">
+                  <p className="text-3xl font-bold text-blue-600">
                     {refData ? refData.totalPoints.toFixed(2) : "0.00"}
                   </p>
                 </div>
-                <div className="rounded-xl border border-[#2A2A2A] bg-[#141414] p-5">
+                <div className="rounded-xl border border-gray-200 bg-white p-5">
                   <div className="flex items-center gap-2 mb-2">
                     <Users className="h-4 w-4 text-blue-400" />
-                    <p className="text-[11px] text-[#666]">Filleuls directs</p>
+                    <p className="text-[11px] text-gray-400">Filleuls directs</p>
                   </div>
-                  <p className="text-3xl font-bold text-white">
+                  <p className="text-3xl font-bold text-gray-900">
                     {refData ? refData.nombreFilleulsDirects : 0}
                   </p>
                 </div>
               </div>
-              <p className="text-[11px] text-[#555] text-center">
+              <p className="text-[11px] text-gray-400 text-center">
                 Vue allégée — le détail de la chaîne n'est pas accessible depuis le Call Center.
               </p>
             </>

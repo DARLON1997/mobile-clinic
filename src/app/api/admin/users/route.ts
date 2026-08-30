@@ -5,21 +5,7 @@ import { z }                           from "zod"
 import bcrypt                          from "bcryptjs"
 import { buildDefaultScheduleEntries } from "@/lib/default-schedules"
 import type { MedicalSpeciality }      from "@prisma/client"
-
-const BaseSchema = z.object({
-  email:    z.string().email(),
-  password: z.string().min(8),
-  phone:    z.string().min(8),
-  role:     z.enum(["CALL_CENTER_AGENT", "MEDECIN", "AGENT_TERRAIN"]),
-})
-
-const DoctorSchema = BaseSchema.extend({
-  firstName:       z.string().min(1),
-  lastName:        z.string().min(1),
-  speciality:      z.string().min(1),
-  licenseNumber:   z.string().min(1),
-  consultationFee: z.coerce.number().min(0),
-})
+import { BaseUserSchema as BaseSchema, DoctorUserSchema as DoctorSchema } from "@/lib/validation/create-user"
 
 export async function POST(req: Request) {
   const session = await auth()

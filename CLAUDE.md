@@ -28,7 +28,7 @@ npx prisma generate                   # régénérer le client Prisma
 
 ```
 src/
-  auth.ts               ← NextAuth v5 (JWT strategy, Credentials, 5 rôles)
+  auth.ts               ← NextAuth v5 (JWT strategy, Credentials, 6 rôles)
   middleware.ts          ← Protection routes par rôle + règle critique médecin
   lib/
     prisma.ts           ← Client Prisma singleton (globalThis pattern)
@@ -50,6 +50,7 @@ src/
       patient/          ← PATIENT
       call-center/      ← CALL_CENTER_AGENT
       agent/            ← AGENT_TERRAIN
+      pharmacie/        ← PHARMACIE
     api/
       auth/[...nextauth]/route.ts   ← handlers Auth.js
       auth/register/route.ts        ← POST inscription patient
@@ -60,7 +61,7 @@ prisma/schema.prisma    ← Schéma complet (User, Appointment, Mission, AuditLo
 
 ## Rôles & RÈGLE CRITIQUE
 
-**5 rôles** : `SUPER_ADMIN` · `CALL_CENTER_AGENT` · `MEDECIN` · `AGENT_TERRAIN` · `PATIENT`
+**6 rôles** : `SUPER_ADMIN` · `CALL_CENTER_AGENT` · `MEDECIN` · `AGENT_TERRAIN` · `PATIENT` · `PHARMACIE`
 
 **⚠️ RÈGLE CRITIQUE — Un médecin ne peut JAMAIS accéder aux données d'un patient sans `appointment.adminApproval === true` en base de données.**
 - Le middleware vérifie le rôle uniquement
@@ -75,11 +76,12 @@ prisma/schema.prisma    ← Schéma complet (User, Appointment, Mission, AuditLo
 | `/patient`     | PATIENT            |
 | `/call-center` | CALL_CENTER_AGENT  |
 | `/agent`       | AGENT_TERRAIN      |
+| `/pharmacie`   | PHARMACIE          |
 
 ## Tailwind v4
 
 Pas de `tailwind.config.ts`. Configuration via `@theme inline { }` dans `globals.css`.  
-Custom colors : `primary` (blue-700), `medical-green` (green-600).
+Thème « Luxury Medical · Rose Gold · Dark » : `mc-rose-gold` (#C8906A, accent principal), `mc-black` (#0A0A0A, fond), `mc-bg-card` (#141414), `mc-bg-secondary` (#1A1A1A) — plus les couleurs sémantiques `mc-success`/`mc-warning`/`mc-danger`/`mc-info`.
 
 ## Prisma
 

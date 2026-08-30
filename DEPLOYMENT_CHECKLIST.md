@@ -83,3 +83,7 @@ https://<votre-domaine>.vercel.app/api/health
 | `NEXTAUTH_URL` | `https://mobile-clinic.vercel.app` | Oui |
 | `RESEND_API_KEY` | `re_xxxx` | Oui |
 | `NEXT_PUBLIC_PAYMENT_ENABLED` | `false` | Oui |
+| `VAPID_PUBLIC_KEY` | générée via `node -e "console.log(require('web-push').generateVAPIDKeys())"` | Oui (notifications push, audit H3) |
+| `VAPID_PRIVATE_KEY` | idem — **secret, jamais exposé au client** | Oui (idem) |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | même valeur que `VAPID_PUBLIC_KEY` (dupliquée pour être lisible côté client) | Oui (idem) |
+| `VAPID_SUBJECT` | `mailto:contact@mobile-clinic.cg` | Non (défaut codé en dur sinon) |

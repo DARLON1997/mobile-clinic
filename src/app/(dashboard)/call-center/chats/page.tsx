@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { MessageCircle, Send, UserCheck, X } from "lucide-react"
+import { ArrowLeft, MessageCircle, Send, UserCheck, X } from "lucide-react"
 import { cn, getInitials, formatRelativeTime, isSameDay, formatDateLabel } from "@/lib/utils"
 import { getPusherClient } from "@/lib/pusher-client"
 import { playNotificationSound } from "@/lib/chat-notifications"
@@ -234,8 +234,9 @@ export default function CallCenterChatsPage() {
   return (
     <div className="flex h-[calc(100vh-8rem)] overflow-hidden rounded-xl border border-[#2A2A2A] bg-[#0F0F0F]">
 
-      {/* Colonne gauche */}
-      <div className="flex w-72 flex-col border-r border-[#2A2A2A]">
+      {/* Colonne gauche — plein écran sur mobile tant qu'aucune conversation
+          n'est ouverte, colonne fixe à partir de md: (audit : chats mobile) */}
+      <div className={cn("w-full flex-col border-r border-[#2A2A2A] md:flex md:w-72", activeId ? "hidden" : "flex")}>
         <div className="border-b border-[#2A2A2A] p-4">
           <h2 className="font-semibold text-white">Conversations</h2>
           <div className="mt-2.5 flex gap-1 flex-wrap">
@@ -283,12 +284,17 @@ export default function CallCenterChatsPage() {
         </div>
       </div>
 
-      {/* Colonne droite */}
+      {/* Colonne droite — masquée sur mobile tant qu'aucune conversation
+          n'est ouverte (audit : chats mobile) */}
       {activeChat ? (
-        <div className="flex flex-1 flex-col">
+        <div className="flex w-full flex-1 flex-col">
           {/* En-tête */}
           <div className="flex items-center justify-between border-b border-[#2A2A2A] bg-[#141414] p-4">
             <div className="flex items-center gap-3">
+              <button onClick={() => setActiveId(null)} aria-label="Retour aux conversations"
+                className="text-[#666666] hover:text-white md:hidden">
+                <ArrowLeft className="h-5 w-5" />
+              </button>
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#C8906A] to-[#E8B49A] text-sm font-bold text-[#0A0A0A]">
                 {getInitials(patientName(activeChat))}
               </div>
@@ -373,7 +379,7 @@ export default function CallCenterChatsPage() {
           )}
         </div>
       ) : (
-        <div className="flex flex-1 items-center justify-center">
+        <div className="hidden flex-1 items-center justify-center md:flex">
           <div className="text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(200,144,106,0.08)] border border-[rgba(200,144,106,0.15)]">
               <MessageCircle className="h-7 w-7 text-[#C8906A]" />

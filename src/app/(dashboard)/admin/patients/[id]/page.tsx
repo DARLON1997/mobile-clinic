@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { ArrowLeft, Loader2, Monitor, Smartphone, Tablet, Gift, ChevronDown, ChevronRight } from "lucide-react"
+import { Loader2, Monitor, Smartphone, Tablet, Gift, ChevronDown, ChevronRight } from "lucide-react"
+import { BackButton } from "@/components/ui/back-button"
 import { STATUS_LABEL, STATUS_COLOR, type PatientActivityStatus } from "@/lib/patient-activity-status"
 import { computeActivityStatus } from "@/lib/patient-activity-status"
 import { cn } from "@/lib/utils"
@@ -111,7 +112,6 @@ type TabKey = "identite" | "journal" | "medical" | "parrainage"
 
 export default function AdminPatientDetailPage() {
   const { id }        = useParams<{ id: string }>()
-  const router        = useRouter()
   const searchParams  = useSearchParams()
   const initialTab    = (searchParams.get("tab") ?? "identite") as TabKey
   const [tab, setTab] = useState<TabKey>(initialTab)
@@ -156,10 +156,7 @@ export default function AdminPatientDetailPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <button onClick={() => router.back()}
-        className="flex items-center gap-1.5 text-sm text-[#666] hover:text-white transition-colors">
-        <ArrowLeft size={16} /> Retour
-      </button>
+      <BackButton />
 
       <div className="flex items-center gap-4">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#1E1E1E] text-lg font-bold text-[#C8906A] ring-2 ring-[rgba(200,144,106,0.3)]">

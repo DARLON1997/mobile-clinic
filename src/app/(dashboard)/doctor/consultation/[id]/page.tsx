@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { VideoRoom } from "@/components/video/VideoRoom"
 import { Button } from "@/components/ui/button"
+import { BackButton } from "@/components/ui/back-button"
 import { calculateAge } from "@/lib/date-utils"
 import {
   AlertTriangle, Loader2, FileText, Stethoscope,
@@ -279,7 +280,7 @@ export default function ConsultationPage() {
     <div className="mx-auto mt-20 max-w-md rounded-xl border border-red-200 bg-red-50 p-8 text-center">
       <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-red-500" />
       <p className="font-semibold text-red-700">{error}</p>
-      <Button variant="outline" className="mt-4" onClick={() => router.back()}>Retour</Button>
+      <BackButton variant="button" className="mt-4" />
     </div>
   )
 
@@ -348,11 +349,11 @@ export default function ConsultationPage() {
             {tab === "notes" && (
               <div className="space-y-3">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-gray-700">
+                  <label htmlFor="consult-signes" className="mb-1 block text-xs font-semibold text-gray-700">
                     <Stethoscope className="mr-1 inline h-3.5 w-3.5" />
                     Signes subjectifs (plaintes du patient)
                   </label>
-                  <textarea rows={4}
+                  <textarea id="consult-signes" rows={4}
                     className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     placeholder="Ce que le patient décrit : douleurs, fièvre, durée des symptômes…"
                     value={signes} onChange={e => onNotesChange(setSignes, e.target.value)}
@@ -360,8 +361,8 @@ export default function ConsultationPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-gray-700">Hypothèses diagnostiques</label>
-                  <textarea rows={3}
+                  <label htmlFor="consult-hypotheses" className="mb-1 block text-xs font-semibold text-gray-700">Hypothèses diagnostiques</label>
+                  <textarea id="consult-hypotheses" rows={3}
                     className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     placeholder="Pistes diagnostiques envisagées…"
                     value={hypotheses} onChange={e => onNotesChange(setHypotheses, e.target.value)}
@@ -416,11 +417,11 @@ export default function ConsultationPage() {
             {/* ── Onglet Prescription ── */}
             {tab === "prescription" && (
               <div>
-                <label className="mb-1 block text-xs font-semibold text-gray-700">
+                <label htmlFor="consult-prescription" className="mb-1 block text-xs font-semibold text-gray-700">
                   <Pill className="mr-1 inline h-3.5 w-3.5" />
                   Prescription médicale
                 </label>
-                <textarea rows={12}
+                <textarea id="consult-prescription" rows={12}
                   className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   placeholder={"Médicament — Dosage — Durée\nEx:\nAmoxicilline 500mg — 3x/jour — 7 jours\nParacétamol 1g — si fièvre > 38°5\n\nRecommandations:\n…"}
                   value={prescription} onChange={e => onNotesChange(setPrescription, e.target.value)}
@@ -528,7 +529,7 @@ export default function ConsultationPage() {
                     )}
 
                     {photoError && (
-                      <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                      <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
                         ⚠️ {photoError}
                       </div>
                     )}

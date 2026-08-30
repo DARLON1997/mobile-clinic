@@ -4,11 +4,12 @@ import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { triggerAdminNotification } from "@/lib/pusher"
 import { checkSlotInMemory, fetchAvailabilitiesForDoctors } from "@/lib/check-doctor-availability"
+import { appointmentReasonSchema } from "@/lib/validation/appointment"
 
 const postSchema = z.object({
   doctorId:    z.string().cuid(),
   scheduledAt: z.string().datetime(),
-  reason:      z.string().min(10, "Le motif doit contenir au moins 10 caractères"),
+  reason:      appointmentReasonSchema,
   duration:    z.union([
     z.literal(15), z.literal(30), z.literal(45), z.literal(60)
   ]).default(30),

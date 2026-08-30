@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Save, Loader2, Video, Building2 } from "lucide-react"
+import { useParams } from "next/navigation"
+import { Save, Loader2, Video, Building2 } from "lucide-react"
 import { SPECIALITY_LABELS } from "@/lib/specialities"
+import { BackButton } from "@/components/ui/back-button"
 
 const JOURS = ["LUNDI", "MARDI", "MERCREDI", "JEUDI", "VENDREDI", "SAMEDI", "DIMANCHE"] as const
 const JOUR_LABELS: Record<string, string> = {
@@ -31,7 +32,6 @@ type Doctor = {
 
 export default function PlanningPage() {
   const params = useParams()
-  const router = useRouter()
   const doctorId = params.id as string
 
   const [doctor,   setDoctor]   = useState<Doctor | null>(null)
@@ -122,9 +122,7 @@ export default function PlanningPage() {
       {/* En-tête */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <button onClick={() => router.back()} className="mb-2 flex items-center gap-1 text-sm text-[#666666] hover:text-white transition-colors">
-            <ArrowLeft className="h-4 w-4" /> Retour
-          </button>
+          <BackButton className="mb-2" />
           <h1 className="text-2xl font-bold text-white">Planning hebdomadaire</h1>
           {doctor && (
             <p className="mt-0.5 text-sm text-[#666666]">{doctorName} · {speciality}</p>
@@ -162,7 +160,7 @@ export default function PlanningPage() {
       ) : null}
 
       {!loading && (
-        <div className="overflow-x-auto rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F]">
+        <div className="hidden overflow-x-auto rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[#2A2A2A] text-[10px] font-semibold uppercase tracking-wider text-[#555555]">
@@ -233,6 +231,75 @@ export default function PlanningPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Mobile : accordéon par jour (audit C4 — grille non convertible en cartes) */}
+      {!loading && (
+        <div className="flex flex-col gap-2 md:hidden">
+          {JOURS.map((jour) => {
+            const video = schedule[jour].VIDEO
+            const presentiel = schedule[jour].PRESENTIEL
+            const activeCount = [video.isActive, presentiel.isActive].filter(Boolean).length
+            return (
+              <details key={jour} className="rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] px-4 py-1 open:pb-3">
+                <summary className="flex cursor-pointer list-none items-center justify-between py-3 text-sm font-medium text-white">
+                  <span>{JOUR_LABELS[jour]}</span>
+                  <span className={`text-xs font-normal ${activeCount > 0 ? "text-green-400" : "text-[#555555]"}`}>
+                    {activeCount === 0 ? "Fermé" : activeCount === 2 ? "Vidéo + Présentiel" : "1 créneau actif"}
+                  </span>
+                </summary>
+                <div className="space-y-3 border-t border-[#1A1A1A] pt-3">
+                  {(["VIDEO", "PRESENTIEL"] as ConsulType[]).map((type) => {
+                    const entry = schedule[jour][type]
+                    return (
+                      <div key={type} className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          {type === "VIDEO"
+                            ? <Video className="h-4 w-4 text-blue-400" />
+                            : <Building2 className="h-4 w-4 text-[#C8906A]" />}
+                          <span className="text-xs font-medium text-[#AAAAAA]">
+                            {type === "VIDEO" ? "Vidéo" : "Présentiel"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {entry.isActive ? (
+                            <>
+                              <input
+                                type="time"
+                                value={entry.startTime}
+                                onChange={(e) => updateEntry(jour, type, "startTime", e.target.value)}
+                                className="w-[4.5rem] rounded border border-[#2A2A2A] bg-[#1A1A1A] px-1.5 py-1 text-[11px] text-white focus:border-[#C8906A] focus:outline-none"
+                              />
+                              <input
+                                type="time"
+                                value={entry.endTime}
+                                onChange={(e) => updateEntry(jour, type, "endTime", e.target.value)}
+                                className="w-[4.5rem] rounded border border-[#2A2A2A] bg-[#1A1A1A] px-1.5 py-1 text-[11px] text-white focus:border-[#C8906A] focus:outline-none"
+                              />
+                            </>
+                          ) : (
+                            <span className="text-[11px] text-[#444444]">Fermé</span>
+                          )}
+                          <button
+                            aria-label={`${entry.isActive ? "Désactiver" : "Activer"} ${type === "VIDEO" ? "vidéo" : "présentiel"} le ${JOUR_LABELS[jour]}`}
+                            onClick={() => updateEntry(jour, type, "isActive", !entry.isActive)}
+                            className={`h-5 w-9 shrink-0 rounded-full transition-colors ${
+                              entry.isActive ? "bg-green-500" : "bg-[#2A2A2A]"
+                            }`}
+                          >
+                            <span className={`block h-4 w-4 rounded-full bg-white shadow transition-transform mx-0.5 ${
+                              entry.isActive ? "translate-x-4" : "translate-x-0"
+                            }`} />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </details>
+            )
+          })}
         </div>
       )}
 

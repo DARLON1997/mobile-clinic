@@ -165,14 +165,16 @@ export default function DoctorsPage() {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F]">
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-[#C8906A]" />
-          </div>
-        ) : doctors.length === 0 ? (
-          <div className="py-16 text-center text-sm text-[#444444]">Aucun médecin enregistré.</div>
-        ) : (
+      {loading ? (
+        <div className="flex items-center justify-center rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-[#C8906A]" />
+        </div>
+      ) : doctors.length === 0 ? (
+        <div className="rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] py-16 text-center text-sm text-[#444444]">Aucun médecin enregistré.</div>
+      ) : (
+        <>
+        {/* Desktop : tableau — inchangé */}
+        <div className="hidden overflow-x-auto rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[#2A2A2A] text-[10px] font-semibold uppercase tracking-wider text-[#555555]">
@@ -306,8 +308,106 @@ export default function DoctorsPage() {
               })}
             </tbody>
           </table>
-        )}
-      </div>
+        </div>
+
+        {/* Mobile : liste de cartes empilées (audit C4) */}
+        <div className="flex flex-col gap-3 md:hidden">
+          {doctors.map((doc) => {
+            const dp     = doc.doctorProfile
+            const isBusy = busy === doc.id
+            return (
+              <div key={doc.id} className="rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] p-4">
+                <div className="mb-3 flex items-center gap-3">
+                  {dp?.avatarUrl ? (
+                    <Image src={dp.avatarUrl} alt="" width={40} height={40}
+                      className="h-10 w-10 rounded-full object-cover ring-1 ring-[#2A2A2A]" />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#1A1A1A] to-[#2A2A2A] ring-1 ring-[rgba(200,144,106,0.2)] text-xs font-bold text-[#C8906A]">
+                      {dp ? `${dp.firstName.charAt(0)}${dp.lastName.charAt(0)}` : "?"}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-white">
+                      {dp ? `Dr ${dp.firstName} ${dp.lastName}` : "—"}
+                    </p>
+                    <p className="truncate text-xs text-[#555555]">{doc.email}</p>
+                  </div>
+                  {!dp ? (
+                    <span className="shrink-0 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-[10px] font-medium text-yellow-400">
+                      Incomplet
+                    </span>
+                  ) : !dp.isVerifiedByAdmin ? (
+                    <span className="shrink-0 rounded-full border border-orange-500/30 bg-orange-500/10 px-2 py-0.5 text-[10px] font-medium text-orange-400">
+                      En attente
+                    </span>
+                  ) : doc.isActive ? (
+                    <span className="shrink-0 rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-400">
+                      Actif
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-400">
+                      Suspendu
+                    </span>
+                  )}
+                </div>
+                {dp && (
+                  <p className="mb-3 text-xs text-[#AAAAAA]">
+                    {SPECIALITY_LABELS[dp.speciality] ?? dp.speciality} · {formatXAF(dp.consultationFee)} · Licence {dp.licenseNumber}
+                  </p>
+                )}
+                {isBusy ? (
+                  <div className="flex justify-center py-1.5">
+                    <Loader2 className="h-4 w-4 animate-spin text-[#C8906A]" />
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {dp && !dp.isVerifiedByAdmin && (
+                      <button
+                        onClick={() => askConfirm("verify", doc)}
+                        className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-green-600/10 border border-green-500/30 px-2.5 py-2 text-xs font-medium text-green-400 hover:bg-green-600/20 transition-colors"
+                      >
+                        <ShieldCheck className="h-3.5 w-3.5" /> Valider
+                      </button>
+                    )}
+                    {dp && dp.isVerifiedByAdmin && (
+                      doc.isActive ? (
+                        <button
+                          onClick={() => askConfirm("suspend", doc)}
+                          className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-orange-600/10 border border-orange-500/30 px-2.5 py-2 text-xs font-medium text-orange-400 hover:bg-orange-600/20 transition-colors"
+                        >
+                          <XCircle className="h-3.5 w-3.5" /> Suspendre
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => askConfirm("reactivate", doc)}
+                          className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-blue-600/10 border border-blue-500/30 px-2.5 py-2 text-xs font-medium text-blue-400 hover:bg-blue-600/20 transition-colors"
+                        >
+                          <CheckCircle className="h-3.5 w-3.5" /> Réactiver
+                        </button>
+                      )
+                    )}
+                    {dp && (
+                      <Link
+                        href={`/admin/medecins/${doc.id}/planning`}
+                        className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-blue-600/10 border border-blue-500/30 px-2.5 py-2 text-xs font-medium text-blue-400 hover:bg-blue-600/20 transition-colors"
+                      >
+                        <CalendarDays className="h-3.5 w-3.5" /> Planning
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => askConfirm("delete", doc)}
+                      className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-red-600/10 border border-red-500/30 px-2.5 py-2 text-xs font-medium text-red-400 hover:bg-red-600/20 transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Supprimer
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        </>
+      )}
     </div>
   )
 }

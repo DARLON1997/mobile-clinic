@@ -9,7 +9,6 @@ import { PromoBanner }              from "@/components/patient/PromoBanner"
 import { ServiceGrid }              from "@/components/patient/ServiceGrid"
 import { NextAppointmentCard }      from "@/components/patient/NextAppointmentCard"
 import { HealthNews }               from "@/components/patient/HealthNews"
-import { BottomNav }                from "@/components/patient/BottomNav"
 import { WhatsAppContactButton }    from "@/components/patient/WhatsAppContactButton"
 import type { SerializedAppointment } from "@/components/patient/NextAppointmentCard"
 
@@ -151,15 +150,13 @@ export default async function PatientDashboard() {
             SECTION 5 — Actualités santé (scroll horizontal)
         ───────────────────────────────────────────────────────── */}
         <HealthNews />
-
-        {/* Espace pour la bottom nav sur mobile */}
-        <div className="h-16 md:hidden" />
       </div>
 
       {/* ─────────────────────────────────────────────────────────
-          SECTION 6 — Navigation basse fixe (mobile uniquement)
+          SECTION 6 — Navigation basse fixe : désormais rendue
+          globalement par Sidebar.tsx pour tous les rôles (audit C2) ;
+          l'espacement réservé vient de (dashboard)/layout.tsx.
       ───────────────────────────────────────────────────────── */}
-      <BottomNav />
 
       {/* ─────────────────────────────────────────────────────────
           SECTION 7 — Bouton flottant WhatsApp (patient uniquement)

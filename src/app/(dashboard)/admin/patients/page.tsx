@@ -145,65 +145,116 @@ export default function AdminPatientsPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F]">
-        {isLoading ? (
-          <div className="py-16 text-center text-sm text-[#666]">Chargement…</div>
-        ) : patients.length === 0 ? (
-          <div className="py-16 text-center text-sm text-[#666]">Aucun patient trouvé.</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[#2A2A2A] text-[10px] font-semibold uppercase tracking-wider text-[#555]">
-                {["Patient","Téléphone","Dernière connexion","Statut","Dernière consultation","Connexions"].map(h => (
-                  <th key={h} className="px-4 py-3 text-left">{h}</th>
+      {isLoading ? (
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] p-4">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="skeleton h-4 w-36" />
+                <div className="skeleton h-4 w-20" />
+              </div>
+              <div className="skeleton mb-1.5 h-3 w-48" />
+              <div className="skeleton h-3 w-32" />
+            </div>
+          ))}
+        </div>
+      ) : patients.length === 0 ? (
+        <div className="rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] py-16 text-center text-sm text-[#666]">Aucun patient trouvé.</div>
+      ) : (
+        <>
+          {/* Desktop : tableau — inchangé */}
+          <div className="hidden overflow-x-auto rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#2A2A2A] text-[10px] font-semibold uppercase tracking-wider text-[#555]">
+                  {["Patient","Téléphone","Dernière connexion","Statut","Dernière consultation","Connexions"].map(h => (
+                    <th key={h} className="px-4 py-3 text-left">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {patients.map((p) => (
+                  <tr
+                    key={p.id}
+                    onClick={() => router.push(`/admin/patients/${p.id}`)}
+                    className="cursor-pointer border-b border-[#1A1A1A] transition-colors hover:bg-[#161616] last:border-0"
+                  >
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-white">{p.prenom} {p.nom}</p>
+                      <p className="text-[11px] text-[#666]">{p.email}</p>
+                    </td>
+                    <td className="px-4 py-3 text-[#AAAAAA]">{p.phone}</td>
+                    <td className="px-4 py-3">
+                      <p className="text-[#AAAAAA]">{daysSince(p.lastConnectionAt)}</p>
+                      {p.lastConnectionAt && (
+                        <p className="text-[11px] text-[#555]">
+                          {new Date(p.lastConnectionAt).toLocaleDateString("fr-FR")}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                        style={{ background: `${STATUS_COLOR[p.activityStatus]}1A`, color: STATUS_COLOR[p.activityStatus] }}
+                      >
+                        {STATUS_LABEL[p.activityStatus]}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {p.derniereConsultation ? (
+                        <>
+                          <p className="text-[#AAAAAA]">{p.derniereConsultation.medecin}</p>
+                          <p className="text-[11px] text-[#555]">
+                            {new Date(p.derniereConsultation.date).toLocaleDateString("fr-FR")}
+                          </p>
+                        </>
+                      ) : <span className="text-[#555]">—</span>}
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-[#C8906A]">{p.totalConnections}</td>
+                  </tr>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {patients.map((p) => (
-                <tr
-                  key={p.id}
-                  onClick={() => router.push(`/admin/patients/${p.id}`)}
-                  className="cursor-pointer border-b border-[#1A1A1A] transition-colors hover:bg-[#161616] last:border-0"
-                >
-                  <td className="px-4 py-3">
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile : liste de cartes empilées (audit C4) */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {patients.map((p) => (
+              <div
+                key={p.id}
+                onClick={() => router.push(`/admin/patients/${p.id}`)}
+                className="cursor-pointer rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F] p-4 transition-colors active:bg-[#161616]"
+              >
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <div>
                     <p className="font-medium text-white">{p.prenom} {p.nom}</p>
                     <p className="text-[11px] text-[#666]">{p.email}</p>
-                  </td>
-                  <td className="px-4 py-3 text-[#AAAAAA]">{p.phone}</td>
-                  <td className="px-4 py-3">
-                    <p className="text-[#AAAAAA]">{daysSince(p.lastConnectionAt)}</p>
-                    {p.lastConnectionAt && (
-                      <p className="text-[11px] text-[#555]">
-                        {new Date(p.lastConnectionAt).toLocaleDateString("fr-FR")}
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
-                      style={{ background: `${STATUS_COLOR[p.activityStatus]}1A`, color: STATUS_COLOR[p.activityStatus] }}
-                    >
-                      {STATUS_LABEL[p.activityStatus]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {p.derniereConsultation ? (
-                      <>
-                        <p className="text-[#AAAAAA]">{p.derniereConsultation.medecin}</p>
-                        <p className="text-[11px] text-[#555]">
-                          {new Date(p.derniereConsultation.date).toLocaleDateString("fr-FR")}
-                        </p>
-                      </>
-                    ) : <span className="text-[#555]">—</span>}
-                  </td>
-                  <td className="px-4 py-3 font-semibold text-[#C8906A]">{p.totalConnections}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+                  </div>
+                  <span
+                    className="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                    style={{ background: `${STATUS_COLOR[p.activityStatus]}1A`, color: STATUS_COLOR[p.activityStatus] }}
+                  >
+                    {STATUS_LABEL[p.activityStatus]}
+                  </span>
+                </div>
+                <div className="space-y-1 text-[12px] text-[#AAAAAA]">
+                  <p>{p.phone}</p>
+                  <p>
+                    Dernière connexion : {daysSince(p.lastConnectionAt)}
+                    {p.lastConnectionAt && ` (${new Date(p.lastConnectionAt).toLocaleDateString("fr-FR")})`}
+                  </p>
+                  <p className="text-[#888]">
+                    {p.derniereConsultation
+                      ? `${p.derniereConsultation.medecin} · ${new Date(p.derniereConsultation.date).toLocaleDateString("fr-FR")}`
+                      : <span className="text-[#555]">Aucune consultation</span>}
+                  </p>
+                  <p className="font-semibold text-[#C8906A]">{p.totalConnections} connexion{p.totalConnections > 1 ? "s" : ""}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {pagination.pages > 1 && (
         <div className="flex items-center justify-between text-sm text-[#666]">

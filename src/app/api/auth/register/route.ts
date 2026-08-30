@@ -7,28 +7,7 @@ import { sendSMS } from "@/lib/africas-talking"
 import { checkApiLimit } from "@/lib/rate-limit"
 import { logServerError } from "@/lib/error-logger"
 import { generateUniqueReferralCode } from "@/lib/referral"
-
-const schema = z.object({
-  firstName:        z.string().min(2),
-  lastName:         z.string().min(2),
-  email:            z.string().email(),
-  // Format Congo : +242XXXXXXXXX
-  phone:            z.string().regex(/^\+242\d{9}$/, "Format requis : +242XXXXXXXXX"),
-  // Min 8 chars, au moins 1 majuscule et 1 chiffre
-  password:         z.string().regex(
-    /^(?=.*[A-Z])(?=.*\d).{8,}$/,
-    "Minimum 8 caractères, une majuscule et un chiffre"
-  ),
-  gender:           z.enum(["M", "F"]),
-  dateOfBirth:      z.string().min(1),
-  address:          z.string().min(3),
-  city:             z.string().min(2).default("Brazzaville"),
-  bloodType:        z.string().optional(),
-  allergies:        z.string().optional(),
-  medicalHistory:   z.string().optional(),
-  emergencyContact: z.string().optional(),
-  referralCodeInput: z.string().optional(),
-})
+import { registerSchema as schema } from "@/lib/validation/register"
 
 export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown"

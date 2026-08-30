@@ -208,68 +208,120 @@ export default function CCAppointmentsPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="h-7 w-7 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-gray-200 bg-white p-4">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="h-4 w-36 skeleton-light" />
+                <div className="h-4 w-20 skeleton-light" />
+              </div>
+              <div className="mb-1.5 h-3 w-48 skeleton-light" />
+              <div className="h-3 w-24 skeleton-light" />
+            </div>
+          ))}
         </div>
       ) : filtered.length === 0 ? (
         <p className="py-12 text-center text-sm text-gray-400">Aucun rendez-vous trouvé.</p>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="border-b border-gray-100 bg-gray-50">
-              <tr>
-                {["Patient", "Médecin", "Date", "Type", "Statut", "Action"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtered.map((a) => {
-                const pp = a.patient.patientProfile
-                const dp = a.doctor.doctorProfile
-                return (
-                  <tr key={a.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
+        <>
+          {/* Desktop : tableau — inchangé */}
+          <div className="hidden overflow-hidden rounded-xl border border-gray-200 bg-white md:block">
+            <table className="w-full text-sm">
+              <thead className="border-b border-gray-100 bg-gray-50">
+                <tr>
+                  {["Patient", "Médecin", "Date", "Type", "Statut", "Action"].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map((a) => {
+                  const pp = a.patient.patientProfile
+                  const dp = a.doctor.doctorProfile
+                  return (
+                    <tr key={a.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-900">{pp ? `${pp.firstName} ${pp.lastName}` : "—"}</p>
+                        {a.patient.phone && <p className="text-xs text-gray-400">{a.patient.phone}</p>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {dp ? (
+                          <>
+                            <p className="text-gray-900">Dr {dp.firstName} {dp.lastName}</p>
+                            <p className="text-xs text-gray-400">{dp.speciality}</p>
+                          </>
+                        ) : <span className="text-gray-400">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {new Date(a.scheduledAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                        {a.status === "PENDING" && <AvailabilityBadge check={a.availabilityCheck} />}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                          {TYPE_LABEL[a.type] ?? a.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={a.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        {a.status === "PENDING" && (
+                          <button
+                            onClick={() => submitToAdmin(a.id)}
+                            disabled={submitting === a.id}
+                            className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                          >
+                            {submitting === a.id ? "..." : "Soumettre admin"}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile : liste de cartes empilées (audit C4) */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {filtered.map((a) => {
+              const pp = a.patient.patientProfile
+              const dp = a.doctor.doctorProfile
+              return (
+                <div key={a.id} className="rounded-xl border border-gray-200 bg-white p-4">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div>
                       <p className="font-medium text-gray-900">{pp ? `${pp.firstName} ${pp.lastName}` : "—"}</p>
                       {a.patient.phone && <p className="text-xs text-gray-400">{a.patient.phone}</p>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {dp ? (
-                        <>
-                          <p className="text-gray-900">Dr {dp.firstName} {dp.lastName}</p>
-                          <p className="text-xs text-gray-400">{dp.speciality}</p>
-                        </>
-                      ) : <span className="text-gray-400">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
+                    </div>
+                    <StatusBadge status={a.status} />
+                  </div>
+                  <div className="space-y-1 text-sm text-gray-600">
+                    <p>
+                      {dp ? <>Dr {dp.firstName} {dp.lastName} <span className="text-gray-400">· {dp.speciality}</span></> : "—"}
+                    </p>
+                    <p>
                       {new Date(a.scheduledAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                       {a.status === "PENDING" && <AvailabilityBadge check={a.availabilityCheck} />}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                        {TYPE_LABEL[a.type] ?? a.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={a.status} />
-                    </td>
-                    <td className="px-4 py-3">
-                      {a.status === "PENDING" && (
-                        <button
-                          onClick={() => submitToAdmin(a.id)}
-                          disabled={submitting === a.id}
-                          className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
-                        >
-                          {submitting === a.id ? "..." : "Soumettre admin"}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </p>
+                    <span className="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                      {TYPE_LABEL[a.type] ?? a.type}
+                    </span>
+                  </div>
+                  {a.status === "PENDING" && (
+                    <button
+                      onClick={() => submitToAdmin(a.id)}
+                      disabled={submitting === a.id}
+                      className="mt-3 w-full rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                    >
+                      {submitting === a.id ? "..." : "Soumettre admin"}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </>
       )}
 
       {/* Modal création RDV — 4 étapes */}

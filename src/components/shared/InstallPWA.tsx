@@ -1,47 +1,30 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Download, CheckCircle } from "lucide-react"
+import { useInstallPrompt } from "@/hooks/useInstallPrompt"
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>
-}
-
+/**
+ * Bouton d'installation compact pour le pied de page public (Footer.tsx).
+ * Détection déléguée à useInstallPrompt — même source de vérité que la
+ * bannière du dashboard (InstallBanner.tsx), pour ne plus dupliquer la
+ * capture de `beforeinstallprompt` (audit M6). Android + prompt natif
+ * uniquement, comme avant : pas de guide iOS ici, ce composant reste un
+ * simple lien de pied de page, pas une bannière.
+ */
 export function InstallPWA() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [installed,       setInstalled]      = useState(false)
-  const [success,         setSuccess]        = useState(false)
+  const { hasNativePrompt, isInstalled, triggerInstall } = useInstallPrompt()
+  const [success, setSuccess] = useState(false)
 
-  useEffect(() => {
-    if (typeof window === "undefined") return
-
-    // App déjà installée en mode standalone
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setInstalled(true)
-      return
-    }
-
-    const handler = (e: Event) => {
-      e.preventDefault()
-      setDeferredPrompt(e as BeforeInstallPromptEvent)
-    }
-    window.addEventListener("beforeinstallprompt", handler)
-    return () => window.removeEventListener("beforeinstallprompt", handler)
-  }, [])
-
-  async function install() {
-    if (!deferredPrompt) return
-    await deferredPrompt.prompt()
-    const { outcome } = await deferredPrompt.userChoice
+  async function handleInstall() {
+    const outcome = await triggerInstall()
     if (outcome === "accepted") {
       setSuccess(true)
-      setDeferredPrompt(null)
       setTimeout(() => setSuccess(false), 4000)
     }
   }
 
-  if (installed || !deferredPrompt) return null
+  if (isInstalled || !hasNativePrompt) return null
 
   if (success) return (
     <div className="flex items-center gap-2 text-xs text-[#4CAF87]">
@@ -51,7 +34,7 @@ export function InstallPWA() {
   )
 
   return (
-    <button onClick={install}
+    <button onClick={handleInstall}
       className="flex items-center gap-2 rounded-lg border border-[#2A2A2A] px-4 py-2.5 font-montserrat text-xs font-medium text-[#AAAAAA] transition-all hover:border-[rgba(200,144,106,0.3)] hover:text-[#C8906A]"
     >
       <Download className="h-3.5 w-3.5" />

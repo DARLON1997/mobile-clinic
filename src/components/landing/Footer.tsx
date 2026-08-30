@@ -70,7 +70,7 @@ export function Footer() {
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-[#2A2A2A] pt-6 text-xs text-[#444444] sm:flex-row">
           <p>© {new Date().getFullYear()} Mobile Clinic — Tous droits réservés.</p>
           <div className="flex gap-5">
-            <Link href="#" className="hover:text-[#C8906A] transition-colors">Politique de confidentialité</Link>
+            <Link href="/politique-confidentialite" className="hover:text-[#C8906A] transition-colors">Politique de confidentialité</Link>
             <Link href="#" className="hover:text-[#C8906A] transition-colors">Conditions d&apos;utilisation</Link>
           </div>
         </div>

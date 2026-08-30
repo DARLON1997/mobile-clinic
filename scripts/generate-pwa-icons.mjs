@@ -3,13 +3,14 @@
  * Utilise sharp (déjà présent dans les deps de Next.js).
  */
 import sharp from "sharp"
-import { readFileSync, writeFileSync } from "fs"
+import { readFileSync, writeFileSync, mkdirSync } from "fs"
 import { fileURLToPath } from "url"
 import path from "path"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT      = path.resolve(__dirname, "..")
 const OUT       = path.join(ROOT, "public", "pwa")
+const STORE_OUT = path.join(ROOT, "store-assets")
 
 // SVG du logo Mobile Clinic (version rasterisable — cercle pinceau + stéthoscope)
 function buildSVG(size, maskable = false) {
@@ -74,9 +75,13 @@ function buildSVG(size, maskable = false) {
 </svg>`
 }
 
-async function generate(svgStr, outFile) {
+async function generate(svgStr, outFile, { flatten = false } = {}) {
   const buf = Buffer.from(svgStr, "utf-8")
-  await sharp(buf).png({ quality: 100 }).toFile(outFile)
+  let img = sharp(buf)
+  // App Store Connect refuse les icônes avec canal alpha — on aplatit sur le
+  // fond de marque plutôt que de laisser une transparence résiduelle (audit H6).
+  if (flatten) img = img.flatten({ background: "#0A0A0A" })
+  await img.png({ quality: 100 }).toFile(outFile)
   console.log(`✅ ${outFile}`)
 }
 
@@ -84,8 +89,11 @@ await generate(buildSVG(192,  false), `${OUT}/icon-192x192.png`)
 await generate(buildSVG(512,  false), `${OUT}/icon-512x512.png`)
 await generate(buildSVG(512,  true),  `${OUT}/icon-maskable-512x512.png`)
 
-// Copier dans /public/images/ pour compatibilité avec l'ancien manifest.json
-await generate(buildSVG(192,  false), `${ROOT}/public/images/icon-192.png`)
-await generate(buildSVG(512,  false), `${ROOT}/public/images/icon-512.png`)
+// Icône marketing App Store Connect (1024×1024, sans alpha) — jamais servie
+// publiquement, uniquement pour le dépôt manuel lors de la soumission (H6).
+// Le 512×512 Play Console (32-bit avec alpha) est déjà couvert par
+// icon-512x512.png ci-dessus, aucune génération supplémentaire nécessaire.
+mkdirSync(STORE_OUT, { recursive: true })
+await generate(buildSVG(1024, false), `${STORE_OUT}/icon-1024x1024-appstore.png`, { flatten: true })
 
 console.log("\n🎉 Icônes PWA générées avec succès.")

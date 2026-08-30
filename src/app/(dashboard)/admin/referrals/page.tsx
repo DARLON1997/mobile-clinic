@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
-import { Loader2, Search, Gift, Users, Trophy, Eye, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, Gift, Users, Trophy, Eye, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type PatientRow = {
@@ -120,7 +120,18 @@ export default function AdminReferralsPage() {
 
       {/* Tableau */}
       {isLoading ? (
-        <div className="flex justify-center py-16"><Loader2 className="h-7 w-7 animate-spin text-[#C8906A]" /></div>
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-[#2A2A2A] bg-[#141414] p-4">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="skeleton h-4 w-36" />
+                <div className="skeleton h-4 w-20" />
+              </div>
+              <div className="skeleton mb-1.5 h-3 w-48" />
+              <div className="skeleton h-3 w-32" />
+            </div>
+          ))}
+        </div>
       ) : patients.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#2A2A2A] py-16 text-center">
           <Gift className="mx-auto mb-3 h-10 w-10 text-[#333]" />
@@ -128,7 +139,8 @@ export default function AdminReferralsPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-[#2A2A2A] bg-[#0F0F0F]">
-          <div className="overflow-x-auto">
+          {/* Desktop : tableau — inchangé */}
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[#1A1A1A]">
@@ -182,6 +194,42 @@ export default function AdminReferralsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile : liste de cartes empilées (audit C4) */}
+          <div className="flex flex-col gap-3 p-3 md:hidden">
+            {patients.map((p) => (
+              <div
+                key={p.id}
+                onClick={() => router.push(`/admin/patients/${p.id}?tab=parrainage`)}
+                className="cursor-pointer rounded-xl border border-[#1A1A1A] bg-[#141414] p-4 active:bg-[#1A1A1A]"
+              >
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-white">{p.prenom} {p.nom}</p>
+                    <p className="text-xs text-[#888]">{p.telephone}</p>
+                  </div>
+                  <code className="shrink-0 rounded bg-[#1A1A1A] px-2 py-0.5 text-xs text-[#C8906A]">
+                    {p.referralCode}
+                  </code>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className={cn("font-bold", p.totalPoints > 0 ? "text-[#C8906A]" : "text-[#555]")}>
+                    {p.totalPoints.toFixed(2)} pts
+                  </span>
+                  <span className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                    p.nombreFilleulsDirects > 0 ? "bg-blue-500/10 text-blue-400" : "bg-[#1A1A1A] text-[#555]"
+                  )}>
+                    <Users className="h-3 w-3" />
+                    {p.nombreFilleulsDirects} filleul{p.nombreFilleulsDirects > 1 ? "s" : ""}
+                  </span>
+                </div>
+                <p className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-[#2A2A2A] px-3 py-2 text-xs font-medium text-[#888]">
+                  <Eye className="h-3.5 w-3.5" /> Voir le détail
+                </p>
+              </div>
+            ))}
           </div>
 
           {/* Pagination */}

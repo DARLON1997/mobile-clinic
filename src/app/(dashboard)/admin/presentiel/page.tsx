@@ -124,8 +124,17 @@ export default function AdminPresentielPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-gray-200 bg-white p-4">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="h-4 w-36 skeleton-light" />
+                <div className="h-4 w-20 skeleton-light" />
+              </div>
+              <div className="mb-1.5 h-3 w-48 skeleton-light" />
+              <div className="h-3 w-24 skeleton-light" />
+            </div>
+          ))}
         </div>
       ) : optimisticRows.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white py-12 text-center">
@@ -133,72 +142,122 @@ export default function AdminPresentielPage() {
           <p className="text-gray-400">Aucune demande pour ce filtre.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-gray-50 text-xs font-semibold uppercase text-gray-500">
-                <th className="px-4 py-3 text-left">Patient</th>
-                <th className="px-4 py-3 text-left">Médecin</th>
-                <th className="px-4 py-3 text-left">Cabinet</th>
-                <th className="px-4 py-3 text-left">Créneau</th>
-                <th className="px-4 py-3 text-left">Motif</th>
-                <th className="px-4 py-3 text-left">Statut</th>
-                <th className="px-4 py-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {optimisticRows.map((item) => {
-                const patientName = item.patient.patientProfile
-                  ? `${item.patient.patientProfile.firstName} ${item.patient.patientProfile.lastName}`
-                  : item.patient.phone
-                const doctorName = item.doctor.doctorProfile
-                  ? `Dr ${item.doctor.doctorProfile.firstName} ${item.doctor.doctorProfile.lastName}`
-                  : item.doctor.email
-                return (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
+        <>
+          {/* Desktop : tableau — inchangé */}
+          <div className="hidden overflow-x-auto rounded-xl border border-gray-200 bg-white md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50 text-xs font-semibold uppercase text-gray-500">
+                  <th className="px-4 py-3 text-left">Patient</th>
+                  <th className="px-4 py-3 text-left">Médecin</th>
+                  <th className="px-4 py-3 text-left">Cabinet</th>
+                  <th className="px-4 py-3 text-left">Créneau</th>
+                  <th className="px-4 py-3 text-left">Motif</th>
+                  <th className="px-4 py-3 text-left">Statut</th>
+                  <th className="px-4 py-3 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {optimisticRows.map((item) => {
+                  const patientName = item.patient.patientProfile
+                    ? `${item.patient.patientProfile.firstName} ${item.patient.patientProfile.lastName}`
+                    : item.patient.phone
+                  const doctorName = item.doctor.doctorProfile
+                    ? `Dr ${item.doctor.doctorProfile.firstName} ${item.doctor.doctorProfile.lastName}`
+                    : item.doctor.email
+                  return (
+                    <tr key={item.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-900">{patientName}</p>
+                        <p className="text-xs text-gray-400">{item.patient.phone}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-gray-700">{doctorName}</p>
+                        {item.doctor.doctorProfile && (
+                          <p className="text-xs text-gray-400">{item.doctor.doctorProfile.speciality}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-gray-700">{item.cabinet?.name ?? "—"}</p>
+                        <p className="text-xs text-gray-400">{item.cabinet?.city ?? ""}</p>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                        {formatDateFR(new Date(item.scheduledAt))}
+                        <p className="text-xs text-gray-400">{item.duration} min</p>
+                        <AvailabilityBadge check={item.availabilityCheck} />
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 max-w-[180px] truncate">{item.reason}</td>
+                      <td className="px-4 py-3">
+                        <PresentielStatusBadge status={item.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        {(item.status === "EN_ATTENTE" || item.status === "NOUVEAU_CRENEAU") && (
+                          <div className="flex flex-wrap gap-1.5">
+                            <Button size="sm" variant="secondary" className="h-7 px-2 text-xs"
+                              onClick={() => { setModal({ id: item.id, decision: "APPROVE", patientName, doctorName, availabilityCheck: item.availabilityCheck }); setAdminNote(""); setError("") }}>
+                              <Check className="h-3 w-3" /> Confirmer
+                            </Button>
+                            <Button size="sm" variant="danger" className="h-7 px-2 text-xs"
+                              onClick={() => { setModal({ id: item.id, decision: "REJECT", patientName, doctorName, availabilityCheck: item.availabilityCheck }); setAdminNote(""); setError("") }}>
+                              <X className="h-3 w-3" /> Refuser
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile : liste de cartes empilées (audit C4) */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {optimisticRows.map((item) => {
+              const patientName = item.patient.patientProfile
+                ? `${item.patient.patientProfile.firstName} ${item.patient.patientProfile.lastName}`
+                : item.patient.phone
+              const doctorName = item.doctor.doctorProfile
+                ? `Dr ${item.doctor.doctorProfile.firstName} ${item.doctor.doctorProfile.lastName}`
+                : item.doctor.email
+              return (
+                <div key={item.id} className="rounded-xl border border-gray-200 bg-white p-4">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div>
                       <p className="font-medium text-gray-900">{patientName}</p>
                       <p className="text-xs text-gray-400">{item.patient.phone}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-gray-700">{doctorName}</p>
-                      {item.doctor.doctorProfile && (
-                        <p className="text-xs text-gray-400">{item.doctor.doctorProfile.speciality}</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-gray-700">{item.cabinet?.name ?? "—"}</p>
-                      <p className="text-xs text-gray-400">{item.cabinet?.city ?? ""}</p>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                      {formatDateFR(new Date(item.scheduledAt))}
-                      <p className="text-xs text-gray-400">{item.duration} min</p>
+                    </div>
+                    <PresentielStatusBadge status={item.status} />
+                  </div>
+                  <div className="mb-3 space-y-1 text-sm text-gray-600">
+                    <p>
+                      {doctorName}
+                      {item.doctor.doctorProfile && <span className="text-gray-400"> · {item.doctor.doctorProfile.speciality}</span>}
+                    </p>
+                    <p>{item.cabinet?.name ?? "—"}{item.cabinet?.city ? `, ${item.cabinet.city}` : ""}</p>
+                    <p className="whitespace-nowrap">
+                      {formatDateFR(new Date(item.scheduledAt))} · {item.duration} min
                       <AvailabilityBadge check={item.availabilityCheck} />
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 max-w-[180px] truncate">{item.reason}</td>
-                    <td className="px-4 py-3">
-                      <PresentielStatusBadge status={item.status} />
-                    </td>
-                    <td className="px-4 py-3">
-                      {(item.status === "EN_ATTENTE" || item.status === "NOUVEAU_CRENEAU") && (
-                        <div className="flex flex-wrap gap-1.5">
-                          <Button size="sm" variant="secondary" className="h-7 px-2 text-xs"
-                            onClick={() => { setModal({ id: item.id, decision: "APPROVE", patientName, doctorName, availabilityCheck: item.availabilityCheck }); setAdminNote(""); setError("") }}>
-                            <Check className="h-3 w-3" /> Confirmer
-                          </Button>
-                          <Button size="sm" variant="danger" className="h-7 px-2 text-xs"
-                            onClick={() => { setModal({ id: item.id, decision: "REJECT", patientName, doctorName, availabilityCheck: item.availabilityCheck }); setAdminNote(""); setError("") }}>
-                            <X className="h-3 w-3" /> Refuser
-                          </Button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </p>
+                    <p className="truncate">{item.reason}</p>
+                  </div>
+                  {(item.status === "EN_ATTENTE" || item.status === "NOUVEAU_CRENEAU") && (
+                    <div className="flex gap-1.5">
+                      <Button size="sm" variant="secondary" className="h-8 flex-1 text-xs"
+                        onClick={() => { setModal({ id: item.id, decision: "APPROVE", patientName, doctorName, availabilityCheck: item.availabilityCheck }); setAdminNote(""); setError("") }}>
+                        <Check className="h-3 w-3" /> Confirmer
+                      </Button>
+                      <Button size="sm" variant="danger" className="h-8 flex-1 text-xs"
+                        onClick={() => { setModal({ id: item.id, decision: "REJECT", patientName, doctorName, availabilityCheck: item.availabilityCheck }); setAdminNote(""); setError("") }}>
+                        <X className="h-3 w-3" /> Refuser
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </>
       )}
 
       {modal && (

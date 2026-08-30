@@ -136,64 +136,113 @@ export default function CCHomeVisitsPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="h-7 w-7 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-gray-200 bg-white p-4">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="h-4 w-36 skeleton-light" />
+                <div className="h-4 w-20 skeleton-light" />
+              </div>
+              <div className="mb-1.5 h-3 w-48 skeleton-light" />
+              <div className="h-3 w-24 skeleton-light" />
+            </div>
+          ))}
         </div>
       ) : visits.length === 0 ? (
         <p className="py-12 text-center text-sm text-gray-400">Aucune visite trouvée.</p>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="border-b border-gray-100 bg-gray-50">
-              <tr>
-                {["Patient", "Adresse", "Date / Heure", "Type", "Agent", "Statut"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {visits.map((v) => {
-                const pp = v.patient.patientProfile
-                const ap = v.agent?.agentProfile
-                return (
-                  <tr key={v.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900">
-                        {pp ? `${pp.firstName} ${pp.lastName}` : "—"}
-                      </p>
+        <>
+          {/* Desktop : tableau — inchangé */}
+          <div className="hidden overflow-hidden rounded-xl border border-gray-200 bg-white md:block">
+            <table className="w-full text-sm">
+              <thead className="border-b border-gray-100 bg-gray-50">
+                <tr>
+                  {["Patient", "Adresse", "Date / Heure", "Type", "Agent", "Statut"].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {visits.map((v) => {
+                  const pp = v.patient.patientProfile
+                  const ap = v.agent?.agentProfile
+                  return (
+                    <tr key={v.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-900">
+                          {pp ? `${pp.firstName} ${pp.lastName}` : "—"}
+                        </p>
+                        {v.patient.phone && <p className="text-xs text-gray-400">{v.patient.phone}</p>}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        <div className="flex items-start gap-1">
+                          <MapPin className="mt-0.5 h-3 w-3 text-gray-400 shrink-0" />
+                          <span>{v.address}, {v.city}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {new Date(v.scheduledAt).toLocaleDateString("fr-FR", {
+                          day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                        })}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                          v.type === "CARE" ? "bg-blue-50 text-blue-700" : "bg-purple-50 text-purple-700"
+                        }`}>
+                          {v.type === "CARE" ? <Home className="h-3 w-3" /> : <TestTube2 className="h-3 w-3" />}
+                          {v.type === "CARE" ? "Soin" : "Prélèvement"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {ap ? `${ap.firstName} ${ap.lastName}` : <span className="text-gray-300">Non assigné</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <HomeVisitStatusBadge status={v.status as Parameters<typeof HomeVisitStatusBadge>[0]["status"]} />
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile : liste de cartes empilées (audit C4) */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {visits.map((v) => {
+              const pp = v.patient.patientProfile
+              const ap = v.agent?.agentProfile
+              return (
+                <div key={v.id} className="rounded-xl border border-gray-200 bg-white p-4">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-gray-900">{pp ? `${pp.firstName} ${pp.lastName}` : "—"}</p>
                       {v.patient.phone && <p className="text-xs text-gray-400">{v.patient.phone}</p>}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      <div className="flex items-start gap-1">
-                        <MapPin className="mt-0.5 h-3 w-3 text-gray-400 shrink-0" />
-                        <span>{v.address}, {v.city}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
+                    </div>
+                    <HomeVisitStatusBadge status={v.status as Parameters<typeof HomeVisitStatusBadge>[0]["status"]} />
+                  </div>
+                  <div className="space-y-1.5 text-sm text-gray-600">
+                    <div className="flex items-start gap-1">
+                      <MapPin className="mt-0.5 h-3 w-3 text-gray-400 shrink-0" />
+                      <span>{v.address}, {v.city}</span>
+                    </div>
+                    <p>
                       {new Date(v.scheduledAt).toLocaleDateString("fr-FR", {
                         day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
                       })}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                        v.type === "CARE" ? "bg-blue-50 text-blue-700" : "bg-purple-50 text-purple-700"
-                      }`}>
-                        {v.type === "CARE" ? <Home className="h-3 w-3" /> : <TestTube2 className="h-3 w-3" />}
-                        {v.type === "CARE" ? "Soin" : "Prélèvement"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {ap ? `${ap.firstName} ${ap.lastName}` : <span className="text-gray-300">Non assigné</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <HomeVisitStatusBadge status={v.status as Parameters<typeof HomeVisitStatusBadge>[0]["status"]} />
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </p>
+                    <p>{ap ? `Agent : ${ap.firstName} ${ap.lastName}` : <span className="text-gray-400">Non assigné</span>}</p>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                      v.type === "CARE" ? "bg-blue-50 text-blue-700" : "bg-purple-50 text-purple-700"
+                    }`}>
+                      {v.type === "CARE" ? <Home className="h-3 w-3" /> : <TestTube2 className="h-3 w-3" />}
+                      {v.type === "CARE" ? "Soin" : "Prélèvement"}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </>
       )}
 
       {/* Modal nouvelle demande */}

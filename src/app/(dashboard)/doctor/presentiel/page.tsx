@@ -113,8 +113,17 @@ export default function DoctorPresentielPage() {
 
       {/* Tableau */}
       {loading ? (
-        <div className="flex items-center justify-center py-14">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#C8906A] border-t-transparent" />
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="h-4 w-36 skeleton-light" />
+                <div className="h-4 w-20 skeleton-light" />
+              </div>
+              <div className="mb-1.5 h-3 w-48 skeleton-light" />
+              <div className="h-3 w-24 skeleton-light" />
+            </div>
+          ))}
         </div>
       ) : rows.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 bg-white py-14 text-center">
@@ -124,80 +133,141 @@ export default function DoctorPresentielPage() {
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-gray-50 text-xs font-semibold uppercase text-gray-500">
-                <th className="px-4 py-3 text-left">Heure</th>
-                <th className="px-4 py-3 text-left">Patient</th>
-                <th className="px-4 py-3 text-left">Cabinet</th>
-                <th className="px-4 py-3 text-left">Motif</th>
-                <th className="px-4 py-3 text-left">Statut</th>
-                <th className="px-4 py-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {rows.map((item) => {
-                const patientName = item.patient.patientProfile
-                  ? `${item.patient.patientProfile.firstName} ${item.patient.patientProfile.lastName}`
-                  : "Patient"
-                const heure = formatDate(new Date(item.scheduledAt)).slice(11)
-                return (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <p className="font-semibold text-gray-900">{heure}</p>
-                      <p className="flex items-center gap-1 text-xs text-gray-400">
-                        <Clock className="h-3 w-3" /> {item.duration} min
-                      </p>
-                    </td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{patientName}</td>
-                    <td className="px-4 py-3">
-                      <p className="text-gray-700">{item.cabinet?.name ?? "—"}</p>
-                      <p className="flex items-center gap-1 text-xs text-gray-400">
-                        <MapPin className="h-3 w-3" />{item.cabinet?.city ?? ""}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3 max-w-[160px] truncate text-gray-600">{item.reason}</td>
-                    <td className="px-4 py-3">
-                      <PresentielStatusBadge status={item.status} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1.5">
-                        {(item.status === "CONFIRME" || item.status === "CRENEAU_ACCEPTE") && (
-                          <Button size="sm" className="h-7 px-2 text-xs"
-                            onClick={() => updateStatus(item.id, "EN_COURS")}>
-                            <Check className="h-3 w-3" /> Patient arrivé
-                          </Button>
-                        )}
-                        {item.status === "EN_COURS" && (
-                          <>
-                            <Button size="sm" variant="secondary" className="h-7 px-2 text-xs"
-                              onClick={() => {
-                                setTerminerModal({ id: item.id, patientName })
-                                setNotes("")
-                                setActionError("")
-                              }}>
-                              <FileText className="h-3 w-3" /> Terminer
+        <>
+          {/* Desktop : tableau — inchangé */}
+          <div className="hidden overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50 text-xs font-semibold uppercase text-gray-500">
+                  <th className="px-4 py-3 text-left">Heure</th>
+                  <th className="px-4 py-3 text-left">Patient</th>
+                  <th className="px-4 py-3 text-left">Cabinet</th>
+                  <th className="px-4 py-3 text-left">Motif</th>
+                  <th className="px-4 py-3 text-left">Statut</th>
+                  <th className="px-4 py-3 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {rows.map((item) => {
+                  const patientName = item.patient.patientProfile
+                    ? `${item.patient.patientProfile.firstName} ${item.patient.patientProfile.lastName}`
+                    : "Patient"
+                  const heure = formatDate(new Date(item.scheduledAt)).slice(11)
+                  return (
+                    <tr key={item.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <p className="font-semibold text-gray-900">{heure}</p>
+                        <p className="flex items-center gap-1 text-xs text-gray-400">
+                          <Clock className="h-3 w-3" /> {item.duration} min
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{patientName}</td>
+                      <td className="px-4 py-3">
+                        <p className="text-gray-700">{item.cabinet?.name ?? "—"}</p>
+                        <p className="flex items-center gap-1 text-xs text-gray-400">
+                          <MapPin className="h-3 w-3" />{item.cabinet?.city ?? ""}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 max-w-[160px] truncate text-gray-600">{item.reason}</td>
+                      <td className="px-4 py-3">
+                        <PresentielStatusBadge status={item.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {(item.status === "CONFIRME" || item.status === "CRENEAU_ACCEPTE") && (
+                            <Button size="sm" className="h-7 px-2 text-xs"
+                              onClick={() => updateStatus(item.id, "EN_COURS")}>
+                              <Check className="h-3 w-3" /> Patient arrivé
                             </Button>
-                            <Button size="sm" variant="danger" className="h-7 px-2 text-xs"
-                              onClick={() => updateStatus(item.id, "ABSENT")}>
-                              <UserX className="h-3 w-3" /> Absent
-                            </Button>
-                          </>
-                        )}
-                        {item.status === "TERMINE" && item.notes && (
-                          <span className="flex items-center gap-1 text-xs text-emerald-600">
-                            <FileText className="h-3 w-3" /> Note rédigée
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                          )}
+                          {item.status === "EN_COURS" && (
+                            <>
+                              <Button size="sm" variant="secondary" className="h-7 px-2 text-xs"
+                                onClick={() => {
+                                  setTerminerModal({ id: item.id, patientName })
+                                  setNotes("")
+                                  setActionError("")
+                                }}>
+                                <FileText className="h-3 w-3" /> Terminer
+                              </Button>
+                              <Button size="sm" variant="danger" className="h-7 px-2 text-xs"
+                                onClick={() => updateStatus(item.id, "ABSENT")}>
+                                <UserX className="h-3 w-3" /> Absent
+                              </Button>
+                            </>
+                          )}
+                          {item.status === "TERMINE" && item.notes && (
+                            <span className="flex items-center gap-1 text-xs text-emerald-600">
+                              <FileText className="h-3 w-3" /> Note rédigée
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile : liste de cartes empilées (audit C4) */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {rows.map((item) => {
+              const patientName = item.patient.patientProfile
+                ? `${item.patient.patientProfile.firstName} ${item.patient.patientProfile.lastName}`
+                : "Patient"
+              const heure = formatDate(new Date(item.scheduledAt)).slice(11)
+              return (
+                <div key={item.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-gray-900">{patientName}</p>
+                      <p className="flex items-center gap-1 text-xs text-gray-400">
+                        {heure} · <Clock className="h-3 w-3" /> {item.duration} min
+                      </p>
+                    </div>
+                    <PresentielStatusBadge status={item.status} />
+                  </div>
+                  <div className="mb-3 space-y-1 text-sm text-gray-600">
+                    <p className="flex items-center gap-1 text-gray-700">
+                      <MapPin className="h-3 w-3 text-gray-400" /> {item.cabinet?.name ?? "—"}{item.cabinet?.city ? `, ${item.cabinet.city}` : ""}
+                    </p>
+                    <p className="truncate">{item.reason}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(item.status === "CONFIRME" || item.status === "CRENEAU_ACCEPTE") && (
+                      <Button size="sm" className="h-8 flex-1 text-xs"
+                        onClick={() => updateStatus(item.id, "EN_COURS")}>
+                        <Check className="h-3 w-3" /> Patient arrivé
+                      </Button>
+                    )}
+                    {item.status === "EN_COURS" && (
+                      <>
+                        <Button size="sm" variant="secondary" className="h-8 flex-1 text-xs"
+                          onClick={() => {
+                            setTerminerModal({ id: item.id, patientName })
+                            setNotes("")
+                            setActionError("")
+                          }}>
+                          <FileText className="h-3 w-3" /> Terminer
+                        </Button>
+                        <Button size="sm" variant="danger" className="h-8 flex-1 text-xs"
+                          onClick={() => updateStatus(item.id, "ABSENT")}>
+                          <UserX className="h-3 w-3" /> Absent
+                        </Button>
+                      </>
+                    )}
+                    {item.status === "TERMINE" && item.notes && (
+                      <span className="flex items-center gap-1 text-xs text-emerald-600">
+                        <FileText className="h-3 w-3" /> Note rédigée
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </>
       )}
 
       {/* Modal — Terminer & rédiger ordonnance */}

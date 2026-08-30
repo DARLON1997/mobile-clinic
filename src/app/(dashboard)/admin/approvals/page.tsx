@@ -118,8 +118,17 @@ export default function ApprovalsPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-gray-200 bg-white p-4">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="h-4 w-36 skeleton-light" />
+                <div className="h-4 w-20 skeleton-light" />
+              </div>
+              <div className="mb-1.5 h-3 w-48 skeleton-light" />
+              <div className="h-3 w-24 skeleton-light" />
+            </div>
+          ))}
         </div>
       ) : optimisticRows.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white py-12 text-center">
@@ -127,76 +136,130 @@ export default function ApprovalsPage() {
           <p className="text-gray-400">Aucune demande pour ce filtre.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-gray-50 text-xs font-semibold uppercase text-gray-500">
-                <th className="px-4 py-3 text-left">Patient</th>
-                <th className="px-4 py-3 text-left">Médecin</th>
-                <th className="px-4 py-3 text-left">Date du RDV</th>
-                <th className="px-4 py-3 text-left">Motif</th>
-                <th className="px-4 py-3 text-left">Statut</th>
-                <th className="px-4 py-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {optimisticRows.map((appt) => {
-                const patientName = appt.patient.patientProfile
-                  ? `${appt.patient.patientProfile.firstName} ${appt.patient.patientProfile.lastName}`
-                  : appt.patient.phone
-                const doctorName = appt.doctor.doctorProfile
-                  ? `Dr ${appt.doctor.doctorProfile.firstName} ${appt.doctor.doctorProfile.lastName}`
-                  : appt.doctor.email
-                return (
-                  <tr key={appt.id} className={`hover:bg-gray-50 ${appt.isInstant ? "bg-orange-50/60" : ""}`}>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {appt.isInstant && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-700 ring-1 ring-orange-300">
-                            <Zap className="h-3 w-3" />
-                            URGENT
-                          </span>
-                        )}
-                        <div>
-                          <p className="font-medium text-gray-900">{patientName}</p>
-                          <p className="text-xs text-gray-400">{appt.patient.phone}</p>
+        <>
+          {/* Desktop : tableau — inchangé */}
+          <div className="hidden overflow-x-auto rounded-xl border border-gray-200 bg-white md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50 text-xs font-semibold uppercase text-gray-500">
+                  <th className="px-4 py-3 text-left">Patient</th>
+                  <th className="px-4 py-3 text-left">Médecin</th>
+                  <th className="px-4 py-3 text-left">Date du RDV</th>
+                  <th className="px-4 py-3 text-left">Motif</th>
+                  <th className="px-4 py-3 text-left">Statut</th>
+                  <th className="px-4 py-3 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {optimisticRows.map((appt) => {
+                  const patientName = appt.patient.patientProfile
+                    ? `${appt.patient.patientProfile.firstName} ${appt.patient.patientProfile.lastName}`
+                    : appt.patient.phone
+                  const doctorName = appt.doctor.doctorProfile
+                    ? `Dr ${appt.doctor.doctorProfile.firstName} ${appt.doctor.doctorProfile.lastName}`
+                    : appt.doctor.email
+                  return (
+                    <tr key={appt.id} className={`hover:bg-gray-50 ${appt.isInstant ? "bg-orange-50/60" : ""}`}>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {appt.isInstant && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-700 ring-1 ring-orange-300">
+                              <Zap className="h-3 w-3" />
+                              URGENT
+                            </span>
+                          )}
+                          <div>
+                            <p className="font-medium text-gray-900">{patientName}</p>
+                            <p className="text-xs text-gray-400">{appt.patient.phone}</p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-gray-700">{doctorName}</p>
-                      {appt.doctor.doctorProfile && (
-                        <p className="text-xs text-gray-400">{appt.doctor.doctorProfile.speciality}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-gray-700">{doctorName}</p>
+                        {appt.doctor.doctorProfile && (
+                          <p className="text-xs text-gray-400">{appt.doctor.doctorProfile.speciality}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                        {formatDateFR(new Date(appt.scheduledAt))}
+                        <AvailabilityBadge check={appt.availabilityCheck} />
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 max-w-[160px] truncate">{appt.reason}</td>
+                      <td className="px-4 py-3">
+                        <AppointmentStatusBadge status={appt.status as Parameters<typeof AppointmentStatusBadge>[0]["status"]} />
+                      </td>
+                      <td className="px-4 py-3">
+                        {appt.status === "AWAITING_APPROVAL" && (
+                          <div className="flex gap-1.5">
+                            <Button size="sm" variant="secondary" className="h-7 px-2 text-xs"
+                              onClick={() => { setModal({ id: appt.id, decision: "APPROVE", patientName, doctorName, availabilityCheck: appt.availabilityCheck }); setAdminNote(""); setError("") }}>
+                              <Check className="h-3 w-3" /> Approuver
+                            </Button>
+                            <Button size="sm" variant="danger" className="h-7 px-2 text-xs"
+                              onClick={() => { setModal({ id: appt.id, decision: "REJECT", patientName, doctorName, availabilityCheck: appt.availabilityCheck }); setAdminNote(""); setError("") }}>
+                              <X className="h-3 w-3" /> Refuser
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile : liste de cartes empilées (audit C4) */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {optimisticRows.map((appt) => {
+              const patientName = appt.patient.patientProfile
+                ? `${appt.patient.patientProfile.firstName} ${appt.patient.patientProfile.lastName}`
+                : appt.patient.phone
+              const doctorName = appt.doctor.doctorProfile
+                ? `Dr ${appt.doctor.doctorProfile.firstName} ${appt.doctor.doctorProfile.lastName}`
+                : appt.doctor.email
+              return (
+                <div key={appt.id} className={`rounded-xl border border-gray-200 p-4 ${appt.isInstant ? "bg-orange-50/60" : "bg-white"}`}>
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div>
+                      {appt.isInstant && (
+                        <span className="mb-1 inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-700 ring-1 ring-orange-300">
+                          <Zap className="h-3 w-3" /> URGENT
+                        </span>
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                      <p className="font-medium text-gray-900">{patientName}</p>
+                      <p className="text-xs text-gray-400">{appt.patient.phone}</p>
+                    </div>
+                    <AppointmentStatusBadge status={appt.status as Parameters<typeof AppointmentStatusBadge>[0]["status"]} />
+                  </div>
+                  <div className="mb-3 space-y-1 text-sm text-gray-600">
+                    <p>
+                      {doctorName}
+                      {appt.doctor.doctorProfile && <span className="text-gray-400"> · {appt.doctor.doctorProfile.speciality}</span>}
+                    </p>
+                    <p className="whitespace-nowrap">
                       {formatDateFR(new Date(appt.scheduledAt))}
                       <AvailabilityBadge check={appt.availabilityCheck} />
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 max-w-[160px] truncate">{appt.reason}</td>
-                    <td className="px-4 py-3">
-                      <AppointmentStatusBadge status={appt.status as Parameters<typeof AppointmentStatusBadge>[0]["status"]} />
-                    </td>
-                    <td className="px-4 py-3">
-                      {appt.status === "AWAITING_APPROVAL" && (
-                        <div className="flex gap-1.5">
-                          <Button size="sm" variant="secondary" className="h-7 px-2 text-xs"
-                            onClick={() => { setModal({ id: appt.id, decision: "APPROVE", patientName, doctorName, availabilityCheck: appt.availabilityCheck }); setAdminNote(""); setError("") }}>
-                            <Check className="h-3 w-3" /> Approuver
-                          </Button>
-                          <Button size="sm" variant="danger" className="h-7 px-2 text-xs"
-                            onClick={() => { setModal({ id: appt.id, decision: "REJECT", patientName, doctorName, availabilityCheck: appt.availabilityCheck }); setAdminNote(""); setError("") }}>
-                            <X className="h-3 w-3" /> Refuser
-                          </Button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </p>
+                    <p className="truncate">{appt.reason}</p>
+                  </div>
+                  {appt.status === "AWAITING_APPROVAL" && (
+                    <div className="flex gap-1.5">
+                      <Button size="sm" variant="secondary" className="h-8 flex-1 text-xs"
+                        onClick={() => { setModal({ id: appt.id, decision: "APPROVE", patientName, doctorName, availabilityCheck: appt.availabilityCheck }); setAdminNote(""); setError("") }}>
+                        <Check className="h-3 w-3" /> Approuver
+                      </Button>
+                      <Button size="sm" variant="danger" className="h-8 flex-1 text-xs"
+                        onClick={() => { setModal({ id: appt.id, decision: "REJECT", patientName, doctorName, availabilityCheck: appt.availabilityCheck }); setAdminNote(""); setError("") }}>
+                        <X className="h-3 w-3" /> Refuser
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </>
       )}
 
       {/* Modal */}

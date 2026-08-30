@@ -7,6 +7,8 @@ import { signOut } from "next-auth/react"
 import type { UserRole } from "@/types"
 import { cn } from "@/lib/utils"
 import { LogoMark } from "@/components/shared/LogoMark"
+import { MobileTabBar } from "@/components/shared/MobileTabBar"
+import { Modal } from "@/components/ui/modal"
 import {
   LayoutDashboard, CalendarCheck, Users, ShieldCheck,
   DollarSign, ScrollText, Video, History, BookOpen,
@@ -87,6 +89,19 @@ const ROLE_LABEL: Record<UserRole, string> = {
   PHARMACIE:         "Pharmacie",
 }
 
+// Onglets persistants de la barre basse mobile (audit UI/UX — C2).
+// Références par href vers NAV ci-dessus : une seule source de vérité pour
+// label/icône, pour ne jamais reproduire la divergence icône/libellé/route
+// corrigée en M2. AGENT_TERRAIN n'a qu'une seule destination (AgentShell,
+// pas de Sidebar) et n'a donc pas d'entrée ici.
+const BOTTOM_TAB_HREFS: Partial<Record<UserRole, string[]>> = {
+  SUPER_ADMIN:       ["/admin", "/admin/approvals", "/admin/patients", "/admin/finances"],
+  MEDECIN:           ["/doctor", "/doctor/appointments", "/doctor/presentiel", "/doctor/history"],
+  PATIENT:           ["/patient", "/patient/appointments", "/patient/prescriptions", "/patient/medical-record"],
+  CALL_CENTER_AGENT: ["/call-center", "/call-center/appointments", "/call-center/patients", "/call-center/chats"],
+  PHARMACIE:         ["/pharmacie", "/pharmacie/commandes", "/pharmacie/catalogue", "/pharmacie/stats"],
+}
+
 interface SidebarProps {
   role:     UserRole
   userName: string | null
@@ -101,7 +116,18 @@ export function Sidebar({ role, userName }: SidebarProps) {
     ? userName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "?"
 
-  const NavContent = () => (
+  // C2 — onglets bas dérivés de `items` par href (voir BOTTOM_TAB_HREFS) :
+  // le tiroir mobile n'a plus besoin de reproposer ces destinations, il ne
+  // garde que le reste (navigation secondaire) + le bloc compte/déconnexion.
+  const bottomHrefs = BOTTOM_TAB_HREFS[role]
+  const bottomTabs  = bottomHrefs
+    ?.map((href) => items.find((i) => i.href === href))
+    .filter((i): i is NavItem => Boolean(i)) ?? []
+  const drawerItems = bottomHrefs
+    ? items.filter((i) => !bottomHrefs.includes(i.href))
+    : items
+
+  const NavContent = ({ navItems }: { navItems: NavItem[] }) => (
     <>
       {/* Logo — cercle pinceau compact */}
       <div className="flex items-center gap-3 border-b border-[#2A2A2A] px-5 pb-5 mb-2">
@@ -115,7 +141,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
       {/* Nav items */}
       <nav className="flex-1 overflow-y-auto px-3 py-2">
         <ul className="space-y-0.5">
-          {items.map(({ href, label, icon: Icon }) => {
+          {navItems.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(href + "/")
             return (
               <li key={href}>
@@ -164,33 +190,47 @@ export function Sidebar({ role, userName }: SidebarProps) {
 
   return (
     <>
-      {/* Desktop sidebar */}
+      {/* Desktop sidebar — liste complète, non affectée par C2/C1 (pas de mobile) */}
       <aside className="hidden md:flex h-screen w-[260px] shrink-0 flex-col border-r border-[#2A2A2A] bg-[#0A0A0A] pt-6">
-        <NavContent />
+        <NavContent navItems={items} />
       </aside>
 
-      {/* Mobile hamburger button */}
+      {/* Mobile hamburger button — inchangé : reste le point d'entrée de la
+          navigation secondaire (règle C2), sa position ne bouge pas pour ne
+          pas casser le padding qui lui est réservé dans les headers de page
+          (ex. patient/page.tsx). */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed left-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-xl bg-[#141414] border border-[#2A2A2A] text-white md:hidden"
+        className="fixed left-4 top-[calc(1rem+env(safe-area-inset-top))] z-50 flex h-10 w-10 items-center justify-center rounded-xl bg-[#141414] border border-[#2A2A2A] text-white md:hidden"
         aria-label="Menu"
       >
         <Menu className="h-5 w-5" />
       </button>
 
-      {/* Mobile overlay */}
-      {open && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 flex w-[260px] flex-col bg-[#0A0A0A] border-r border-[#2A2A2A] pt-6 animate-fade-in">
-            <button onClick={() => setOpen(false)}
-              className="absolute right-4 top-4 text-[#666666] hover:text-white">
-              <X className="h-5 w-5" />
-            </button>
-            <NavContent />
-          </aside>
-        </div>
-      )}
+      {/* Mobile overlay — tiroir plein écran (C1 : zones de sécurité) ne
+          contenant plus que la navigation secondaire (C2) */}
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        ariaLabel="Menu de navigation"
+        className="md:hidden"
+        panelClassName="absolute left-0 top-0 bottom-0 flex w-[260px] flex-col bg-[#0A0A0A] border-r border-[#2A2A2A] animate-fade-in"
+        panelStyle={{
+          paddingTop:    "calc(1.5rem + env(safe-area-inset-top))",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+      >
+        <button onClick={() => setOpen(false)}
+          aria-label="Fermer le menu"
+          className="absolute right-4 top-[calc(1rem+env(safe-area-inset-top))] text-[#666666] hover:text-white">
+          <X className="h-5 w-5" />
+        </button>
+        <NavContent navItems={drawerItems} />
+      </Modal>
+
+      {/* Barre d'onglets basse persistante (C2) — remplace le hamburger
+          comme accès principal aux destinations les plus utilisées du rôle */}
+      {bottomTabs.length > 0 && <MobileTabBar items={bottomTabs} />}
     </>
   )
 }

@@ -21,6 +21,15 @@ const PUBLIC_PATHS = [
   "/register",
   "/unauthorized",
   "/suspended",
+  // Page légale — doit rester joignable sans session : consultée par les
+  // visiteurs avant inscription, et obligatoirement par les revues Apple/Google.
+  "/politique-confidentialite",
+  // PWA — doivent rester joignables par un visiteur sans session (avant sa
+  // toute première connexion), sinon le service worker ne s'enregistre
+  // jamais et l'invite d'installation ne peut jamais aboutir.
+  "/manifest.webmanifest",
+  "/sw.js",
+  "/~offline",
 ]
 
 // Préfixes d'API publics (pas de vérification de session)

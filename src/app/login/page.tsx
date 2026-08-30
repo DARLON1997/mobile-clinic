@@ -145,7 +145,7 @@ export default function LoginPage() {
               <p className="mb-7 text-sm text-[#666666]">Accédez à votre espace personnel</p>
 
               {error && (
-                <div className="mb-5 rounded-lg border border-[rgba(232,84,84,0.2)] bg-[rgba(232,84,84,0.08)] px-4 py-3 text-sm text-[#E85454]">
+                <div role="alert" className="mb-5 rounded-lg border border-[rgba(232,84,84,0.2)] bg-[rgba(232,84,84,0.08)] px-4 py-3 text-sm text-[#E85454]">
                   {error}
                 </div>
               )}
@@ -209,7 +209,7 @@ export default function LoginPage() {
               <p className="mb-7 text-center text-sm font-medium text-[#C8906A]">{maskedEmail}</p>
 
               {error && (
-                <div className="mb-5 rounded-lg border border-[rgba(232,84,84,0.2)] bg-[rgba(232,84,84,0.08)] px-4 py-3 text-sm text-[#E85454]">
+                <div role="alert" className="mb-5 rounded-lg border border-[rgba(232,84,84,0.2)] bg-[rgba(232,84,84,0.08)] px-4 py-3 text-sm text-[#E85454]">
                   {error}
                 </div>
               )}

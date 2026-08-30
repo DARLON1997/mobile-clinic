@@ -12,8 +12,10 @@ import { getAvailabilityHint } from "@/lib/default-schedules"
 import { buildWhatsAppLink }   from "@/lib/contact-constants"
 import {
   Video, Home, TestTube2, Building2, Zap,
-  ArrowLeft, ArrowRight, Check, Clock, MapPin, Loader2, MessageCircle,
+  ArrowRight, Check, Clock, MapPin, Loader2, MessageCircle,
 } from "lucide-react"
+import { BackButton } from "@/components/ui/back-button"
+import { appointmentReasonSchema } from "@/lib/validation/appointment"
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -162,8 +164,9 @@ export default function BookPage() {
 
   // ── soumission ───────────────────────────────────────────────────────────
   async function submit() {
-    if (!reason.trim() || reason.length < 10) {
-      setError("Le motif doit contenir au moins 10 caractères.")
+    const reasonCheck = appointmentReasonSchema.safeParse(reason.trim())
+    if (!reasonCheck.success) {
+      setError(reasonCheck.error.issues[0]?.message ?? "Motif invalide.")
       return
     }
     if (type !== "INSTANT" && !safeDate(selectedSlot)) {
@@ -305,7 +308,7 @@ export default function BookPage() {
       <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
 
         {error && (
-          <div className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</div>
+          <div role="alert" className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</div>
         )}
 
         {/* ── ÉTAPE 0 : Service ─────────────────────────────────────────── */}
@@ -558,9 +561,7 @@ export default function BookPage() {
         {/* ── Navigation ───────────────────────────────────────────────── */}
         <div className="mt-6 flex items-center justify-between gap-3">
           {step > 0 ? (
-            <Button type="button" variant="ghost" onClick={handleBack}>
-              <ArrowLeft className="h-4 w-4" /> Retour
-            </Button>
+            <BackButton variant="button" onClick={handleBack} />
           ) : <div />}
 
           {step < 3 ? (

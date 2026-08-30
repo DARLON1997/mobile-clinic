@@ -18,7 +18,7 @@ export function WhatsAppContactButton() {
       aria-label="Contacter le Call Center sur WhatsApp"
       className="fixed right-4 z-50 flex h-[52px] w-[52px] items-center justify-center rounded-full text-white transition-transform active:scale-95"
       style={{
-        bottom:     80,                                    /* au-dessus de la BottomNav (64px) + 16px */
+        bottom:     "calc(80px + env(safe-area-inset-bottom))", /* au-dessus de la barre d'onglets (64px) + 16px + zone de sécurité (C1) */
         background: "linear-gradient(135deg, #25D366, #1FAF54)",
         boxShadow:  "0 4px 16px rgba(37,211,102,0.40)",
       }}

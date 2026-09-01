@@ -9,6 +9,23 @@ import { Input }        from "@/components/ui/input"
 import { LogoMark }     from "@/components/shared/LogoMark"
 import { getDashboardUrl } from "@/lib/utils"
 
+// Messages jamais montrés au patient tels quels — uniquement ceux
+// explicitement reconnus ici comme sûrs (texte simple, sans détail
+// technique). Tout le reste (ex. un message de configuration Resend en
+// cas d'échec d'envoi d'email) retombe sur un message générique, quel
+// que soit ce que l'API renvoie réellement.
+const SAFE_ERRORS = new Set([
+  "Trop de requêtes. Réessayez dans une minute.",
+  "Trop de tentatives. Réessayez dans une heure.",
+  "Email ou mot de passe incorrect.",
+  "Données invalides.",
+])
+
+function toFriendlyError(raw: string | undefined): string {
+  if (raw && SAFE_ERRORS.has(raw)) return raw
+  return "Une erreur est survenue. Réessayez."
+}
+
 export default function LoginPage() {
   const [step, setStep]       = useState<"credentials" | "otp">("credentials")
   const [maskedEmail, setMaskedEmail] = useState("")
@@ -42,7 +59,7 @@ export default function LoginPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error ?? "Email ou mot de passe incorrect.")
+        setError(toFriendlyError(data.error))
         return
       }
 
@@ -113,7 +130,7 @@ export default function LoginPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error ?? "Impossible de renvoyer le code.")
+        setError(toFriendlyError(data.error))
         return
       }
       setResendTimer(60)
@@ -126,152 +143,140 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] px-6">
       <div className="pointer-events-none fixed left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{ background: "radial-gradient(circle, rgba(200,144,106,0.06) 0%, transparent 70%)", filter: "blur(60px)" }} />
 
-      <div className="relative w-full max-w-[420px]">
-        <div className="mb-8 text-center animate-fade-in-up">
-          <Link href="/" className="inline-flex justify-center">
-            <LogoMark size="lg" showText showTagline />
-          </Link>
-        </div>
+      <div className="relative w-full max-w-[360px]">
 
-        <div className="animate-fade-in-up delay-100 rounded-2xl border border-[#2A2A2A] bg-[#141414] p-8">
+        {step === "credentials" ? (
+          <>
+            <div className="mb-10 flex justify-center animate-fade-in-up">
+              <Link href="/">
+                <LogoMark size="sm" showText />
+              </Link>
+            </div>
 
-          {step === "credentials" ? (
-            <>
-              <h1 className="font-heading mb-1 text-xl text-white">Connexion</h1>
-              <p className="mb-7 text-sm text-[#666666]">Accédez à votre espace personnel</p>
+            <form onSubmit={handleCredentials} className="flex flex-col gap-4 animate-fade-in-up delay-100">
+              <Input
+                label="Email"
+                type="email"
+                placeholder="vous@exemple.com"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError("") }}
+                required
+                autoComplete="email"
+              />
 
-              {error && (
-                <div role="alert" className="mb-5 rounded-lg border border-[rgba(232,84,84,0.2)] bg-[rgba(232,84,84,0.08)] px-4 py-3 text-sm text-[#E85454]">
-                  {error}
-                </div>
-              )}
-
-              <form onSubmit={handleCredentials} className="flex flex-col gap-4">
+              <div className="relative">
                 <Input
-                  label="Adresse email"
-                  type="email"
-                  placeholder="vous@exemple.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  label="Mot de passe"
+                  type={showPwd ? "text" : "password"}
+                  placeholder="Votre mot de passe"
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setError("") }}
                   required
-                  autoComplete="email"
+                  autoComplete="current-password"
                 />
-
-                <div className="relative">
-                  <Input
-                    label="Mot de passe"
-                    type={showPwd ? "text" : "password"}
-                    placeholder="Votre mot de passe"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    autoComplete="current-password"
-                  />
-                  <button type="button" onClick={() => setShowPwd(!showPwd)}
-                    className="absolute right-3 top-8 text-[#666666] hover:text-[#AAAAAA] transition-colors"
-                    aria-label={showPwd ? "Masquer" : "Afficher"}>
-                    {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-
-                <div className="flex justify-end">
-                  <Link href="/forgot-password" className="font-montserrat text-xs text-[#C8906A] hover:underline">
-                    Mot de passe oublié ?
-                  </Link>
-                </div>
-
-                <Button type="submit" size="lg" loading={loading} className="mt-1 w-full">
-                  Continuer
-                </Button>
-              </form>
-
-              <p className="mt-6 text-center text-sm text-[#666666]">
-                Pas encore de compte ?{" "}
-                <Link href="/register" className="font-medium text-[#C8906A] hover:underline">
-                  S&apos;inscrire gratuitement
-                </Link>
-              </p>
-            </>
-          ) : (
-            <>
-              <div className="mb-5 flex items-center justify-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(200,144,106,0.1)]">
-                  <Shield className="h-6 w-6 text-[#C8906A]" />
-                </div>
-              </div>
-
-              <h1 className="font-heading mb-1 text-center text-xl text-white">Vérification</h1>
-              <p className="mb-1 text-center text-sm text-[#666666]">Code envoyé par email à</p>
-              <p className="mb-7 text-center text-sm font-medium text-[#C8906A]">{maskedEmail}</p>
-
-              {error && (
-                <div role="alert" className="mb-5 rounded-lg border border-[rgba(232,84,84,0.2)] bg-[rgba(232,84,84,0.08)] px-4 py-3 text-sm text-[#E85454]">
-                  {error}
-                </div>
-              )}
-
-              <form onSubmit={handleOtp} className="flex flex-col gap-4">
-                <Input
-                  label="Code à 6 chiffres"
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="123456"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  required
-                  autoComplete="one-time-code"
-                />
-
-                <Button
-                  type="submit"
-                  size="lg"
-                  loading={loading}
-                  disabled={otp.length !== 6}
-                  className="mt-1 w-full"
-                >
-                  Vérifier le code
-                </Button>
-              </form>
-
-              <div className="mt-4 text-center">
-                {resendTimer > 0 ? (
-                  <p className="text-sm text-[#666666]">
-                    Renvoyer dans <span className="text-[#AAAAAA]">{resendTimer}s</span>
-                  </p>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleResend}
-                    disabled={loading}
-                    className="text-sm text-[#C8906A] hover:underline disabled:opacity-50"
-                  >
-                    Renvoyer un code
-                  </button>
-                )}
-              </div>
-
-              <div className="mt-3 text-center">
-                <button
-                  type="button"
-                  onClick={() => { setStep("credentials"); setOtp(""); setError("") }}
-                  className="text-sm text-[#666666] hover:text-[#AAAAAA] transition-colors"
-                >
-                  ← Changer de compte
+                <button type="button" onClick={() => setShowPwd(!showPwd)}
+                  className="absolute right-3 top-8 text-[#666666] hover:text-[#AAAAAA] transition-colors"
+                  aria-label={showPwd ? "Masquer le mot de passe" : "Afficher le mot de passe"}>
+                  {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-            </>
-          )}
-        </div>
 
-        <p className="mt-6 text-center">
-          <Link href="/" className="font-montserrat text-xs text-[#444444] hover:text-[#AAAAAA] transition-colors">
-            ← Retour à l&apos;accueil
-          </Link>
-        </p>
+              <div className="flex justify-end">
+                <Link href="/forgot-password" className="font-montserrat text-xs text-[#C8906A] hover:underline">
+                  Mot de passe oublié ?
+                </Link>
+              </div>
+
+              {error && (
+                <div role="alert" className="rounded-lg border border-[rgba(232,84,84,0.2)] bg-[rgba(232,84,84,0.08)] px-4 py-2.5 text-sm text-[#E85454]">
+                  {error}
+                </div>
+              )}
+
+              <Button type="submit" size="lg" loading={loading} className="mt-2 w-full">
+                Continuer
+              </Button>
+            </form>
+
+            <p className="mt-8 text-center text-sm text-[#666666] animate-fade-in-up delay-200">
+              Pas encore de compte ?{" "}
+              <Link href="/register" className="font-medium text-[#C8906A] hover:underline">
+                S&apos;inscrire
+              </Link>
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="mb-5 flex items-center justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(200,144,106,0.1)]">
+                <Shield className="h-6 w-6 text-[#C8906A]" />
+              </div>
+            </div>
+
+            <p className="mb-1 text-center text-sm text-[#666666]">Code envoyé par email à</p>
+            <p className="mb-7 text-center text-sm font-medium text-[#C8906A]">{maskedEmail}</p>
+
+            {error && (
+              <div role="alert" className="mb-5 rounded-lg border border-[rgba(232,84,84,0.2)] bg-[rgba(232,84,84,0.08)] px-4 py-3 text-sm text-[#E85454]">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleOtp} className="flex flex-col gap-4">
+              <Input
+                label="Code à 6 chiffres"
+                type="text"
+                inputMode="numeric"
+                placeholder="123456"
+                value={otp}
+                onChange={(e) => { setOtp(e.target.value.replace(/\D/g, "").slice(0, 6)); setError("") }}
+                required
+                autoComplete="one-time-code"
+              />
+
+              <Button
+                type="submit"
+                size="lg"
+                loading={loading}
+                disabled={otp.length !== 6}
+                className="mt-1 w-full"
+              >
+                Vérifier le code
+              </Button>
+            </form>
+
+            <div className="mt-4 text-center">
+              {resendTimer > 0 ? (
+                <p className="text-sm text-[#666666]">
+                  Renvoyer dans <span className="text-[#AAAAAA]">{resendTimer}s</span>
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={loading}
+                  className="text-sm text-[#C8906A] hover:underline disabled:opacity-50"
+                >
+                  Renvoyer un code
+                </button>
+              )}
+            </div>
+
+            <div className="mt-3 text-center">
+              <button
+                type="button"
+                onClick={() => { setStep("credentials"); setOtp(""); setError("") }}
+                className="text-sm text-[#666666] hover:text-[#AAAAAA] transition-colors"
+              >
+                ← Changer de compte
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
